@@ -8,7 +8,8 @@ import {
   ButtonStyle,
   ComponentType,
   StringSelectMenuInteraction,
-  ButtonInteraction
+  ButtonInteraction,
+  MessageFlags
 } from "discord.js";
 import { GameMode, MapsByMode, Result } from "../services/mapService.js";
 import { db } from "../infra/db.js";
