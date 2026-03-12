@@ -1,0 +1,23 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Match {
+  id               String      @id @default(cuid())
+  guildId          String
+  reportedByUserId String
+  mode             String
+  map              String
+  result           String
+  playedAt         DateTime    @default(now())
+  deletedAt        DateTime?
+
+  @@index([guildId, playedAt])
+  @@index([guildId, mode])
+  @@index([guildId, mode, map])
+}
