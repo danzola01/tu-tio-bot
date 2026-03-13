@@ -130,22 +130,26 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     await interaction.reply({
       content: "Step 1: What was the game mode?",
       components: [row],
-      ephemeral: true,
+      flags: [MessageFlags.Ephemeral],
     });
   }
 }
 
-export async function handleComponent(interaction: StringSelectMenuInteraction | ButtonInteraction) {
+export async function handleComponent(
+  interaction: StringSelectMenuInteraction | ButtonInteraction
+) {
   const parts = interaction.customId.split(":");
   const [prefix, action, step] = parts;
   const userId = parts[parts.length - 1];
-  
+
   if (prefix !== "match") return;
   if (interaction.user.id !== userId) {
-    await interaction.reply({ content: "This is not your interaction!", ephemeral: true });
+    await interaction.reply({
+      content: "This is not your interaction!",
+      flags: [MessageFlags.Ephemeral],
+    });
     return;
   }
-
   if (action === "start") {
     if (step === "mode" && interaction.isStringSelectMenu()) {
       const mode = interaction.values[0] as GameMode;
