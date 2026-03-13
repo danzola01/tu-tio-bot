@@ -18,7 +18,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply();
 
   try {
-    const targetUser = interaction.options.getUser("user") || interaction.user;
+    const optionUser = interaction.options.getUser("user");
+    const targetUser = optionUser && !optionUser.bot ? optionUser : interaction.user;
 
     const matches = await db.match.findMany({
       where: {
