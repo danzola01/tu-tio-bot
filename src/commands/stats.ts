@@ -194,8 +194,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
           }
         });
       } else if (graphType === "line") {
-        // Sort matches by date ascending
-        const sortedMatches = matches.sort((a, b) => a.playedAt.getTime() - b.playedAt.getTime());
+        // Sort matches by date ascending (without mutating the original array)
+        const sortedMatches = [...matches].sort((a, b) => a.playedAt.getTime() - b.playedAt.getTime());
         
         const labels: string[] = [];
         const winrateData: number[] = [];
