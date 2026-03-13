@@ -301,7 +301,7 @@ export async function handleComponent(
         });
 
         // Calculate stats for this specific team composition
-        const matchesForTeam = await db.match.findMany({
+        const teamStats = await db.match.groupBy({
           where: {
             guildId: interaction.guildId!,
             deletedAt: null,
@@ -311,15 +311,22 @@ export async function handleComponent(
                 some: { userId }
               }
             }))
-          }
+          },
+          by: ["result"],
+          _count: {
+            _all: true,
+          },
         });
 
         let teamWins = 0;
         let teamLosses = 0;
 
-        for (const m of matchesForTeam) {
-          if (m.result === Result.WIN) teamWins++;
-          else if (m.result === Result.LOSS) teamLosses++;
+        for (const stat of teamStats) {
+          if (stat.result === Result.WIN) {
+            teamWins = stat._count._all;
+          } else if (stat.result === Result.LOSS) {
+            teamLosses = stat._count._all;
+          }
         }
 
         const teamTotal = teamWins + teamLosses;
