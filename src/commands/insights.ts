@@ -28,9 +28,16 @@ export async function execute(interaction: ChatInputCommandInteraction) {
           some: { userId: targetUser.id }
         }
       },
-      include: {
-        players: true
-      }
+      select: {
+        map: true,
+        result: true,
+        players: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+      take: 200,
     });
 
     if (matches.length < 5) {
