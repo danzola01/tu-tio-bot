@@ -26,6 +26,12 @@ ALTER TABLE "new_Match" RENAME TO "Match";
 CREATE INDEX "Match_guildId_playedAt_idx" ON "Match"("guildId", "playedAt");
 CREATE INDEX "Match_guildId_mode_idx" ON "Match"("guildId", "mode");
 CREATE INDEX "Match_guildId_mode_map_idx" ON "Match"("guildId", "mode", "map");
+
+-- Backfill MatchPlayer for existing matches using reportedByUserId
+INSERT INTO "MatchPlayer" ("id", "matchId", "userId")
+SELECT lower(hex(randomblob(16))) AS "id", "id" AS "matchId", "reportedByUserId" AS "userId"
+FROM "Match";
+
 PRAGMA foreign_keys=ON;
 PRAGMA defer_foreign_keys=OFF;
 
