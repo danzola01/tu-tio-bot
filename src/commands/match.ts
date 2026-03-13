@@ -133,7 +133,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       });
 
       // Calculate stats for this specific team composition
-      const matchesForTeam = await db.match.findMany({
+      const teamResultGroups = await db.match.groupBy({
         where: {
           guildId: interaction.guildId!,
           deletedAt: null,
@@ -143,15 +143,22 @@ export async function execute(interaction: ChatInputCommandInteraction) {
               some: { userId }
             }
           }))
-        }
+        },
+        by: ["result"],
+        _count: {
+          _all: true,
+        },
       });
 
       let teamWins = 0;
       let teamLosses = 0;
 
-      for (const m of matchesForTeam) {
-        if (m.result === Result.WIN) teamWins++;
-        else if (m.result === Result.LOSS) teamLosses++;
+      for (const group of teamResultGroups) {
+        if (group.result === Result.WIN) {
+          teamWins = group._count._all;
+        } else if (group.result === Result.LOSS) {
+          teamLosses = group._count._all;
+        }
       }
 
       const teamTotal = teamWins + teamLosses;
