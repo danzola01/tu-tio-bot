@@ -155,12 +155,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     if (total > 0) {
       const chart = new (QuickChart as any)();
       chart.setConfig({
-        type: 'outlabeledPie',
+        type: "outlabeledPie",
         data: {
-          labels: ['Wins', 'Losses'],
+          labels: ["Wins", "Losses"],
           datasets: [{
             data: [totalWins, totalLosses],
-            backgroundColor: ['#4caf50', '#f44336']
+            backgroundColor: ["#4caf50", "#f44336"]
           }]
         },
         options: {
@@ -169,8 +169,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
               display: false,
             },
             outlabels: {
-              text: '%l %p',
-              color: 'white',
+              text: "%l %p",
+              color: "white",
               stretch: 35,
               font: {
                 resizable: true,
@@ -181,9 +181,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
           }
         }
       });
-      chart.setBackgroundColor('transparent');
+      chart.setBackgroundColor("transparent");
       const chartBuffer = await chart.toBinary();
-      attachment = new AttachmentBuilder(chartBuffer, { name: 'chart.png' });
+      attachment = new AttachmentBuilder(chartBuffer, { name: "chart.png" });
     }
 
     if (attachment) {
