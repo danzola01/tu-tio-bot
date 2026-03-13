@@ -92,29 +92,33 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       }));
     }
 
-    const results = await db.match.groupBy({
-      by: ["result", "groupSize"],
+    const matches = await db.match.findMany({
       where,
-      _count: {
-        result: true,
-      },
+      include: {
+        players: true
+      }
     });
 
     let totalWins = 0;
     let totalLosses = 0;
-    const groupStats: Record<number, { wins: number, losses: number }> = {};
+    const teamStats = new Map<string, { wins: number; losses: number; userIds: string[] }>();
 
-    for (const group of results) {
-      const gSize = group.groupSize;
-      if (!groupStats[gSize]) groupStats[gSize] = { wins: 0, losses: 0 };
-
-      if (group.result === Result.WIN) {
-        totalWins += group._count.result;
-        groupStats[gSize].wins += group._count.result;
+    for (const match of matches) {
+      const matchUsers = match.players.map(p => p.userId).sort();
+      const teamKey = matchUsers.join(",");
+      
+      if (!teamStats.has(teamKey)) {
+        teamStats.set(teamKey, { wins: 0, losses: 0, userIds: matchUsers });
       }
-      if (group.result === Result.LOSS) {
-        totalLosses += group._count.result;
-        groupStats[gSize].losses += group._count.result;
+      
+      const stats = teamStats.get(teamKey)!;
+
+      if (match.result === Result.WIN) {
+        totalWins++;
+        stats.wins++;
+      } else if (match.result === Result.LOSS) {
+        totalLosses++;
+        stats.losses++;
       }
     }
 
@@ -129,18 +133,20 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     let message = `${title}${mode ? ` for ${mode}` : ""}${map ? ` on ${map}` : ""}:\n\n`;
     message += `**Overall**: ${totalWins}W - ${totalLosses}L (${winrate}% WR)\n\n`;
 
-    // Add group size breakdown if applicable
-    if (total > 0 && Object.keys(groupStats).length > 0) {
-      message += `**Breakdown by Group Size:**\n`;
-      for (const sizeStr of Object.keys(groupStats).sort()) {
-        const size = parseInt(sizeStr);
-        const stats = groupStats[size];
-        if (!stats) continue;
-        const gTotal = stats.wins + stats.losses;
-        const gWinrate = gTotal > 0 ? ((stats.wins / gTotal) * 100).toFixed(1) : "0.0";
-        const sizeName = size === 1 ? "Solo" : size === 2 ? "Duo" : size === 3 ? "Trio" : size === 4 ? "Quad" : "5-Stack";
+    // Add team breakdown if applicable
+    if (total > 0 && teamStats.size > 0) {
+      message += `**Breakdown by Team:**\n`;
+      
+      const sortedTeams = Array.from(teamStats.values())
+        .sort((a, b) => (b.wins + b.losses) - (a.wins + a.losses))
+        .slice(0, 10); // Show top 10 most played teams
+
+      for (const team of sortedTeams) {
+        const teamTotal = team.wins + team.losses;
+        const teamWinrate = teamTotal > 0 ? ((team.wins / teamTotal) * 100).toFixed(1) : "0.0";
+        const teamMentions = team.userIds.map(id => `<@${id}>`).join(", ");
         
-        message += `- ${sizeName} (${size} players): ${stats.wins}W - ${stats.losses}L (${gWinrate}% WR)\n`;
+        message += `- ${teamMentions}: ${team.wins}W - ${team.losses}L (${teamWinrate}% WR)\n`;
       }
     }
 
