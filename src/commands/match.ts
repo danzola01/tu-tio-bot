@@ -4,10 +4,11 @@ import {
   ChatInputCommandInteraction, 
   ActionRowBuilder, 
   StringSelectMenuBuilder, 
+  UserSelectMenuBuilder,
   ButtonBuilder, 
   ButtonStyle,
-  ComponentType,
   StringSelectMenuInteraction,
+  UserSelectMenuInteraction,
   ButtonInteraction,
   MessageFlags
 } from "discord.js";
@@ -54,6 +55,10 @@ export const data = new SlashCommandBuilder()
             { name: "Loss", value: Result.LOSS }
           )
       )
+      .addUserOption(option => option.setName("player2").setDescription("Squadmate 2").setRequired(false))
+      .addUserOption(option => option.setName("player3").setDescription("Squadmate 3").setRequired(false))
+      .addUserOption(option => option.setName("player4").setDescription("Squadmate 4").setRequired(false))
+      .addUserOption(option => option.setName("player5").setDescription("Squadmate 5").setRequired(false))
   )
   .addSubcommand((subcommand) =>
     subcommand
@@ -86,6 +91,9 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
   }
 }
 
+// In-memory cache for the interactive flow
+const flowState = new Map<string, { squad: string[], mode?: string, map?: string }>();
+
 export async function execute(interaction: ChatInputCommandInteraction) {
   const subcommand = interaction.options.getSubcommand();
 
@@ -93,6 +101,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const mode = interaction.options.getString("mode", true);
     const map = interaction.options.getString("map", true);
     const result = interaction.options.getString("result", true);
+
+    const players = new Set([interaction.user.id]);
+    const p2 = interaction.options.getUser("player2");
+    const p3 = interaction.options.getUser("player3");
+    const p4 = interaction.options.getUser("player4");
+    const p5 = interaction.options.getUser("player5");
+
+    if (p2 && !p2.bot) players.add(p2.id);
+    if (p3 && !p3.bot) players.add(p3.id);
+    if (p4 && !p4.bot) players.add(p4.id);
+    if (p5 && !p5.bot) players.add(p5.id);
+
+    const playerArray = Array.from(players);
 
     await interaction.deferReply();
 
@@ -104,31 +125,34 @@ export async function execute(interaction: ChatInputCommandInteraction) {
           mode,
           map,
           result,
+          groupSize: playerArray.length,
+          players: {
+            create: playerArray.map(id => ({ userId: id }))
+          }
         },
       });
 
       await interaction.editReply(
-        `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\``
+        `✅ Recorded **${result}** on **${map}** (${mode}) with a squad of ${playerArray.length}. Match ID: \`${match.id}\``
       );
     } catch (error) {
       logger.error(error, "Failed to save match");
       await interaction.editReply("❌ An error occurred while saving the match.");
     }
   } else if (subcommand === "start") {
-    const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId(`match:start:mode:${interaction.user.id}`)
-        .setPlaceholder("Select the Game Mode")
-        .addOptions(
-          Object.keys(GameMode).map((mode) => ({
-            label: mode,
-            value: mode,
-          }))
-        )
+    const contextKey = `${interaction.guildId ?? "DM"}:${interaction.user.id}`;
+    flowState.set(contextKey, { squad: [interaction.user.id] });
+
+    const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(
+      new UserSelectMenuBuilder()
+        .setCustomId(`match:start:squad:${contextKey}`)
+        .setPlaceholder("Select up to 4 squadmates")
+        .setMinValues(0)
+        .setMaxValues(4)
     );
 
     await interaction.reply({
-      content: "Step 1: What was the game mode?",
+      content: "Step 1: Who did you play with? (You are automatically included, select 0 if solo)",
       components: [row],
       flags: [MessageFlags.Ephemeral],
     });
@@ -136,7 +160,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 }
 
 export async function handleComponent(
-  interaction: StringSelectMenuInteraction | ButtonInteraction
+  interaction: StringSelectMenuInteraction | UserSelectMenuInteraction | ButtonInteraction
 ) {
   const parts = interaction.customId.split(":");
   const [prefix, action, step] = parts;
@@ -150,14 +174,41 @@ export async function handleComponent(
     });
     return;
   }
+
+  const state = flowState.get(userId) || { squad: [userId] };
+
   if (action === "start") {
-    if (step === "mode" && interaction.isStringSelectMenu()) {
+    if (step === "squad" && interaction.isUserSelectMenu()) {
+      const selectedUsers = interaction.users.filter(u => !u.bot).map(u => u.id);
+      state.squad = Array.from(new Set([userId, ...selectedUsers]));
+      flowState.set(userId, state);
+
+      const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId(`match:start:mode:${userId}`)
+          .setPlaceholder("Select the Game Mode")
+          .addOptions(
+            Object.keys(GameMode).map((mode) => ({
+              label: mode,
+              value: mode,
+            }))
+          )
+      );
+
+      await interaction.update({
+        content: `Step 2: Selected a squad of ${state.squad.length}. What was the game mode?`,
+        components: [row],
+      });
+    } else if (step === "mode" && interaction.isStringSelectMenu()) {
       const mode = interaction.values[0] as GameMode;
+      state.mode = mode;
+      flowState.set(userId, state);
+
       const maps = MapsByMode[mode];
 
       const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
         new StringSelectMenuBuilder()
-          .setCustomId(`match:start:map:${mode}:${userId}`)
+          .setCustomId(`match:start:map:${userId}`)
           .setPlaceholder("Select the Map")
           .addOptions(
             maps.map((map) => ({
@@ -168,32 +219,38 @@ export async function handleComponent(
       );
 
       await interaction.update({
-        content: `Step 2: Selected **${mode}**. Now select the map:`,
+        content: `Step 3: Selected **${mode}**. Now select the map:`,
         components: [row],
       });
     } else if (step === "map" && interaction.isStringSelectMenu()) {
-      const mode = parts[3];
       const map = interaction.values[0];
+      if (!map) return;
+      state.map = map;
+      flowState.set(userId, state);
 
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
-          .setCustomId(`match:start:result:${mode}:${map}:WIN:${userId}`)
+          .setCustomId(`match:start:result:WIN:${userId}`)
           .setLabel("Win")
           .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
-          .setCustomId(`match:start:result:${mode}:${map}:LOSS:${userId}`)
+          .setCustomId(`match:start:result:LOSS:${userId}`)
           .setLabel("Loss")
           .setStyle(ButtonStyle.Danger)
       );
 
       await interaction.update({
-        content: `Step 3: Selected **${map}** (${mode}). What was the result?`,
+        content: `Step 4: Selected **${map}** (${state.mode}). What was the result?`,
         components: [row],
       });
     } else if (step === "result" && interaction.isButton()) {
-      const mode = parts[3]!;
-      const map = parts[4]!;
-      const result = parts[5]!;
+      const result = parts[3]!;
+      const { squad, mode, map } = state;
+
+      if (!mode || !map) {
+        await interaction.update({ content: "❌ State lost, please try again.", components: [] });
+        return;
+      }
 
       try {
         const match = await db.match.create({
@@ -203,11 +260,17 @@ export async function handleComponent(
             mode,
             map,
             result,
+            groupSize: squad.length,
+            players: {
+              create: squad.map(id => ({ userId: id }))
+            }
           },
         });
 
+        flowState.delete(userId);
+
         await interaction.update({
-          content: `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\``,
+          content: `✅ Recorded **${result}** on **${map}** (${mode}) with a squad of ${squad.length}. Match ID: \`${match.id}\``,
           components: [],
         });
       } catch (error) {

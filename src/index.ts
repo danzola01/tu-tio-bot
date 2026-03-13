@@ -3,6 +3,7 @@ import { config } from "./config.js";
 import pino from "pino";
 import * as match from "./commands/match.js";
 import * as stats from "./commands/stats.js";
+import * as leaderboard from "./commands/leaderboard.js";
 
 const logger = pino({
   transport: {
@@ -24,6 +25,7 @@ const client = new Client({
 const commands = new Collection<string, Command>();
 commands.set(match.data.name, match);
 commands.set(stats.data.name, stats);
+commands.set(leaderboard.data.name, leaderboard);
 
 client.once(Events.ClientReady, (readyClient) => {
   logger.info(`✅ Ready! Logged in as ${readyClient.user.tag}`);
@@ -69,7 +71,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     } catch (error) {
       logger.error(error);
     }
-  } else if (interaction.isStringSelectMenu() || interaction.isButton()) {
+  } else if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu() || interaction.isButton()) {
     const [commandName] = interaction.customId.split(":");
     const command = commands.get(commandName!);
 

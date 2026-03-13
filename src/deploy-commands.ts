@@ -3,6 +3,7 @@ import { config } from "./config.js";
 import pino from "pino";
 import * as match from "./commands/match.js";
 import * as stats from "./commands/stats.js";
+import * as leaderboard from "./commands/leaderboard.js";
 
 const logger = pino({
   transport: {
@@ -10,7 +11,7 @@ const logger = pino({
   },
 });
 
-const commands = [match.data.toJSON(), stats.data.toJSON()];
+const commands = [match.data.toJSON(), stats.data.toJSON(), leaderboard.data.toJSON()];
 
 const rest = new REST().setToken(config.DISCORD_TOKEN);
 
