@@ -29,6 +29,16 @@ export const data = new SlashCommandBuilder()
       .setRequired(false)
       .setAutocomplete(true)
   )
+  .addStringOption((option) =>
+    option
+      .setName("graph")
+      .setDescription("Type of chart to display")
+      .setRequired(false)
+      .addChoices(
+        { name: "Pie Chart (Wins/Losses)", value: "pie" },
+        { name: "Line Chart (Winrate Over Time)", value: "line" }
+      )
+  )
   .addUserOption(option => option.setName("user1").setDescription("Player 1").setRequired(false))
   .addUserOption(option => option.setName("user2").setDescription("Player 2").setRequired(false))
   .addUserOption(option => option.setName("user3").setDescription("Player 3").setRequired(false))
@@ -151,37 +161,90 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       }
     }
 
+    const graphType = interaction.options.getString("graph") || "pie";
+
     let attachment: AttachmentBuilder | undefined;
     if (total > 0) {
-      const chart = new (QuickChart as any)();
-      chart.setConfig({
-        type: "outlabeledPie",
-        data: {
-          labels: ["Wins", "Losses"],
-          datasets: [{
-            data: [totalWins, totalLosses],
-            backgroundColor: ["#4caf50", "#f44336"]
-          }]
-        },
-        options: {
-          plugins: {
-            legend: {
-              display: false,
-            },
-            outlabels: {
-              text: "%l %p",
-              color: "white",
-              stretch: 35,
-              font: {
-                resizable: true,
-                minSize: 12,
-                maxSize: 18
+      // @ts-ignore
+      const chart = new QuickChart();
+      
+      if (graphType === "pie") {
+        chart.setConfig({
+          type: "outlabeledPie",
+          data: {
+            labels: ["Wins", "Losses"],
+            datasets: [{
+              data: [totalWins, totalLosses],
+              backgroundColor: ["#4caf50", "#f44336"]
+            }]
+          },
+          options: {
+            plugins: {
+              legend: false,
+              outlabels: {
+                text: "%l %p",
+                color: "white",
+                stretch: 35,
+                font: {
+                  resizable: true,
+                  minSize: 12,
+                  maxSize: 18
+                }
               }
             }
           }
+        });
+      } else if (graphType === "line") {
+        // Sort matches by date ascending
+        const sortedMatches = matches.sort((a, b) => a.playedAt.getTime() - b.playedAt.getTime());
+        
+        const labels: string[] = [];
+        const winrateData: number[] = [];
+        let cumulativeWins = 0;
+        let cumulativeTotal = 0;
+        
+        for (let i = 0; i < sortedMatches.length; i++) {
+          const m = sortedMatches[i];
+          if (!m) continue;
+          cumulativeTotal++;
+          if (m.result === Result.WIN) cumulativeWins++;
+          
+          labels.push(`Match ${i + 1}`);
+          winrateData.push(parseFloat(((cumulativeWins / cumulativeTotal) * 100).toFixed(1)));
         }
-      });
-      chart.setBackgroundColor("transparent");
+
+        chart.setConfig({
+          type: "line",
+          data: {
+            labels,
+            datasets: [{
+              label: "Winrate %",
+              data: winrateData,
+              fill: false,
+              borderColor: "#2196f3",
+              backgroundColor: "#2196f3",
+              tension: 0.1
+            }]
+          },
+          options: {
+            scales: {
+              yAxes: [{
+                ticks: {
+                  beginAtZero: true,
+                  max: 100
+                }
+              }],
+              xAxes: [{
+                ticks: {
+                  display: labels.length <= 20 // Hide x-axis labels if too many matches
+                }
+              }]
+            }
+          }
+        });
+      }
+      
+      chart.setBackgroundColor("white");
       const chartBuffer = await chart.toBinary();
       attachment = new AttachmentBuilder(chartBuffer, { name: "chart.png" });
     }
