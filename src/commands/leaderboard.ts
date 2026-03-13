@@ -17,42 +17,38 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply();
 
   try {
-    // Get all matches for this guild with their players
-    const matches = await db.match.findMany({
-      where: {
-        guildId: interaction.guildId!,
-        deletedAt: null,
-      },
-      include: {
-        players: true,
-      }
-    });
-
-    // Aggregate stats per user
-    const userStats = new Map<string, { wins: number; losses: number }>();
-
-    for (const match of matches) {
-      for (const player of match.players) {
-        const stats = userStats.get(player.userId) || { wins: 0, losses: 0 };
-        if (match.result === Result.WIN) {
-          stats.wins++;
-        } else if (match.result === Result.LOSS) {
-          stats.losses++;
-        }
-        userStats.set(player.userId, stats);
-      }
-    }
-
     const MIN_MATCHES = 5;
 
-    // Calculate winrates, filter, and sort
-    const leaderboard = Array.from(userStats.entries())
-      .map(([userId, stats]) => {
-        const total = stats.wins + stats.losses;
-        const winrate = total > 0 ? (stats.wins / total) * 100 : 0;
-        return { userId, ...stats, total, winrate };
+    // Aggregate stats per user in the database
+    const rows = await db.$queryRaw<Array<{
+      userId: string;
+      wins: bigint | number;
+      losses: bigint | number;
+      total: bigint | number;
+    }>>`
+      SELECT
+        mp."userId" AS "userId",
+        SUM(CASE WHEN m.result = ${Result.WIN} THEN 1 ELSE 0 END) AS "wins",
+        SUM(CASE WHEN m.result = ${Result.LOSS} THEN 1 ELSE 0 END) AS "losses",
+        COUNT(*) AS "total"
+      FROM "MatchPlayer" mp
+      JOIN "Match" m ON m.id = mp."matchId"
+      WHERE
+        m."guildId" = ${interaction.guildId!}
+        AND m."deletedAt" IS NULL
+      GROUP BY mp."userId"
+      HAVING COUNT(*) >= ${MIN_MATCHES}
+    `;
+
+    // Calculate winrates, sort, and take top 10
+    const leaderboard = rows
+      .map(row => {
+        const wins = Number(row.wins);
+        const losses = Number(row.losses);
+        const total = Number(row.total);
+        const winrate = total > 0 ? (wins / total) * 100 : 0;
+        return { userId: row.userId, wins, losses, total, winrate };
       })
-      .filter(u => u.total >= MIN_MATCHES)
       .sort((a, b) => {
         // Sort by winrate descending, then by total matches descending
         if (b.winrate !== a.winrate) return b.winrate - a.winrate;
