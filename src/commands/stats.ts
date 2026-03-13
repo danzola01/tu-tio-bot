@@ -165,7 +165,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         },
         options: {
           plugins: {
-            legend: false,
+            legend: {
+              display: false,
+            },
             outlabels: {
               text: '%l %p',
               color: 'white',
