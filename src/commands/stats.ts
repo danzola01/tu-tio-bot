@@ -1,7 +1,8 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction, AttachmentBuilder } from "discord.js";
 import { db } from "../infra/db.js";
 import { Result, GameMode, MapsByMode } from "../services/mapService.js";
 import pino from "pino";
+import QuickChart from "quickchart-js";
 
 const logger = pino({
   transport: {
@@ -150,7 +151,45 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       }
     }
 
-    await interaction.editReply(message);
+    let attachment: AttachmentBuilder | undefined;
+    if (total > 0) {
+      // @ts-ignore
+      const chart = new QuickChart();
+      chart.setConfig({
+        type: 'outlabeledPie',
+        data: {
+          labels: ['Wins', 'Losses'],
+          datasets: [{
+            data: [totalWins, totalLosses],
+            backgroundColor: ['#4caf50', '#f44336']
+          }]
+        },
+        options: {
+          plugins: {
+            legend: false,
+            outlabels: {
+              text: '%l %p',
+              color: 'white',
+              stretch: 35,
+              font: {
+                resizable: true,
+                minSize: 12,
+                maxSize: 18
+              }
+            }
+          }
+        }
+      });
+      chart.setBackgroundColor('transparent');
+      const chartBuffer = await chart.toBinary();
+      attachment = new AttachmentBuilder(chartBuffer, { name: 'chart.png' });
+    }
+
+    if (attachment) {
+      await interaction.editReply({ content: message, files: [attachment] });
+    } else {
+      await interaction.editReply(message);
+    }
   } catch (error) {
     logger.error(error, "Failed to fetch stats");
     await interaction.editReply("❌ An error occurred while fetching statistics.");
