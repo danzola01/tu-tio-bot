@@ -61,16 +61,50 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       return;
     }
 
+    const leaderBoardWithStreaks = await Promise.all(leaderboard.map(async (u) => {
+      const recentMatches = await db.match.findMany({
+        where: {
+          guildId: interaction.guildId!,
+          deletedAt: null,
+          players: { some: { userId: u.userId } }
+        },
+        orderBy: { playedAt: 'desc' },
+        select: { result: true }
+      });
+      
+      let streakType: string | null = null;
+      let streakCount = 0;
+      
+      for (const m of recentMatches) {
+        if (!streakType) {
+          streakType = m.result;
+          streakCount++;
+        } else if (m.result === streakType) {
+          streakCount++;
+        } else {
+          break;
+        }
+      }
+      
+      return { ...u, streakType, streakCount };
+    }));
+
     let message = `🏆 **Server Leaderboard** (Min. ${MIN_MATCHES} matches)\n\n`;
     
-    leaderboard.forEach((user, index) => {
+    leaderBoardWithStreaks.forEach((user, index) => {
       let medal = "";
       if (index === 0) medal = "🥇 ";
       else if (index === 1) medal = "🥈 ";
       else if (index === 2) medal = "🥉 ";
       else medal = `${index + 1}. `;
 
-      message += `${medal}<@${user.userId}>: **${user.winrate.toFixed(1)}%** (${user.wins}W - ${user.losses}L)\n`;
+      let streakStr = "";
+      if (user.streakCount >= 2) {
+        if (user.streakType === Result.WIN) streakStr = ` 🔥 ${user.streakCount}W`;
+        if (user.streakType === Result.LOSS) streakStr = ` 🧊 ${user.streakCount}L`;
+      }
+
+      message += `${medal}<@${user.userId}>: **${user.winrate.toFixed(1)}%** (${user.wins}W - ${user.losses}L)${streakStr}\n`;
     });
 
     await interaction.editReply(message);
