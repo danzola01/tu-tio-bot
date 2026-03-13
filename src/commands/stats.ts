@@ -165,8 +165,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     let attachment: AttachmentBuilder | undefined;
     if (total > 0) {
-      // @ts-ignore
-      const chart = new QuickChart();
+      const chart = new (QuickChart as unknown as { new (): any })();
       
       if (graphType === "pie") {
         chart.setConfig({
