@@ -9,7 +9,7 @@ export type Role = typeof Role[keyof typeof Role];
 export const HeroesByRole: Record<Role, string[]> = {
   Tank: [
     "D.Va", "Domina", "Doomfist", "Hazard", "Junker Queen", "Mauga", "Orisa",
-    "Ramattra", "Reinhardt", "Roadhog", "Sigma", "Winston",
+    "Ramattra", "Reinhardt", "Roadhog", "Sigma", "Vendetta", "Winston",
     "Wrecking Ball", "Zarya"
   ],
   Damage: [
