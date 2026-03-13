@@ -4,6 +4,7 @@ import pino from "pino";
 import * as match from "./commands/match.js";
 import * as stats from "./commands/stats.js";
 import * as leaderboard from "./commands/leaderboard.js";
+import * as undo from "./commands/undo.js";
 
 const logger = pino({
   transport: {
@@ -26,6 +27,7 @@ const commands = new Collection<string, Command>();
 commands.set(match.data.name, match);
 commands.set(stats.data.name, stats);
 commands.set(leaderboard.data.name, leaderboard);
+commands.set(undo.data.name, undo);
 
 client.once(Events.ClientReady, (readyClient) => {
   logger.info(`✅ Ready! Logged in as ${readyClient.user.tag}`);
