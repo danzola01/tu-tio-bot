@@ -32,6 +32,7 @@ jobs:
             npm ci
             npx prisma migrate deploy
             npm run build
+            npm run deploy
 
             sudo /usr/bin/systemctl restart tu-tio-bot
             sudo /usr/bin/systemctl status tu-tio-bot --no-pager
