@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
 import { db } from "../infra/db.js";
 import { Result, GameMode, MapsByMode } from "../services/mapService.js";
+import { Role, AllHeroes, HeroesByRole } from "../services/heroService.js";
 import pino from "pino";
 
 const logger = pino({
@@ -25,6 +26,22 @@ export const data = new SlashCommandBuilder()
     option
       .setName("map")
       .setDescription("Filter by map")
+      .setRequired(false)
+      .setAutocomplete(true)
+  )
+  .addStringOption((option) =>
+    option
+      .setName("role")
+      .setDescription("Filter by role played")
+      .setRequired(false)
+      .addChoices(
+        ...Object.values(Role).map((r) => ({ name: r, value: r }))
+      )
+  )
+  .addStringOption((option) =>
+    option
+      .setName("hero")
+      .setDescription("Filter by hero played")
       .setRequired(false)
       .setAutocomplete(true)
   )
@@ -56,12 +73,33 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
     await interaction.respond(
       filtered.map((choice) => ({ name: choice, value: choice }))
     );
+  } else if (focusedOption.name === "hero") {
+    const role = interaction.options.getString("role") as Role | null;
+    let choices: string[] = [];
+
+    if (role && HeroesByRole[role]) {
+      choices = HeroesByRole[role];
+    } else {
+      choices = AllHeroes;
+    }
+
+    const filtered = choices
+      .filter((choice) =>
+        choice.toLowerCase().includes(focusedOption.value.toLowerCase())
+      )
+      .slice(0, 25);
+
+    await interaction.respond(
+      filtered.map((choice) => ({ name: choice, value: choice }))
+    );
   }
 }
 
 export async function execute(interaction: ChatInputCommandInteraction) {
   const mode = interaction.options.getString("mode");
   const map = interaction.options.getString("map");
+  const roleFilter = interaction.options.getString("role");
+  const heroFilter = interaction.options.getString("hero");
 
   const players = new Set<string>();
   for (let i = 1; i <= 5; i++) {
@@ -83,13 +121,31 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     if (mode) where.mode = mode;
     if (map) where.map = map;
 
+    const playerFilters: any[] = [];
+
     // If specific players are requested, find matches where ALL these players were present
     if (playerArray.length > 0) {
-      where.AND = playerArray.map(userId => ({
-        players: {
-          some: { userId }
+      for (const userId of playerArray) {
+        const playerCondition: any = { userId };
+        
+        // Apply role/hero filters only to the primary queried user (user1)
+        if (userId === playerArray[0]) {
+          if (roleFilter) playerCondition.role = roleFilter;
+          if (heroFilter) playerCondition.hero = heroFilter;
         }
-      }));
+        playerFilters.push({ players: { some: playerCondition } });
+      }
+    } else if (roleFilter || heroFilter) {
+      // If no users specified but role/hero is, assume the user running the command wants THEIR stats on that role/hero
+      const playerCondition: any = { userId: interaction.user.id };
+      if (roleFilter) playerCondition.role = roleFilter;
+      if (heroFilter) playerCondition.hero = heroFilter;
+      playerFilters.push({ players: { some: playerCondition } });
+      playerArray.push(interaction.user.id); // Add them so the title is accurate
+    }
+
+    if (playerFilters.length > 0) {
+      where.AND = playerFilters;
     }
 
     const matches = await db.match.findMany({
