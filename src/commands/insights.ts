@@ -38,8 +38,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       return;
     }
 
-    const mapStats = new Map<string, { wins: number, losses: number }>();
-    const teammateStats = new Map<string, { wins: number, losses: number }>();
+    const mapStats = new Map<string, { wins: number; losses: number }>();
+    const teammateStats = new Map<string, { wins: number; losses: number }>();
 
     let totalWins = 0;
     let totalLosses = 0;
