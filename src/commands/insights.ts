@@ -72,16 +72,29 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     let bestMapWr = -1;
     let worstMap = "";
     let worstMapWr = 101;
+    const qualifyingMaps: { map: string; wr: number }[] = [];
 
     for (const [map, stats] of mapStats.entries()) {
       const total = stats.wins + stats.losses;
       if (total >= 3) {
         const wr = (stats.wins / total) * 100;
+        qualifyingMaps.push({ map, wr });
+      }
+    }
+
+    if (qualifyingMaps.length > 0) {
+      for (const { map, wr } of qualifyingMaps) {
         if (wr > bestMapWr) {
           bestMapWr = wr;
           bestMap = map;
         }
-        if (wr < worstMapWr) {
+      }
+    }
+
+    if (qualifyingMaps.length > 1 && bestMap) {
+      worstMapWr = 101;
+      for (const { map, wr } of qualifyingMaps) {
+        if (map !== bestMap && wr < worstMapWr) {
           worstMapWr = wr;
           worstMap = map;
         }
