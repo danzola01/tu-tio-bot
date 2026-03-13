@@ -12,7 +12,7 @@ import {
   ButtonInteraction,
   MessageFlags
 } from "discord.js";
-import { GameMode, MapsByMode, Result } from "../services/mapService.js";
+import { GameMode, MapsByMode, Result, getModeForMap, AllMaps } from "../services/mapService.js";
 import { db } from "../infra/db.js";
 import pino from "pino";
 
@@ -29,15 +29,6 @@ export const data = new SlashCommandBuilder()
     subcommand
       .setName("add")
       .setDescription("Add a new match result")
-      .addStringOption((option) =>
-        option
-          .setName("mode")
-          .setDescription("The game mode")
-          .setRequired(true)
-          .addChoices(
-            ...Object.keys(GameMode).map((mode) => ({ name: mode, value: mode }))
-          )
-      )
       .addStringOption((option) =>
         option
           .setName("map")
@@ -70,13 +61,15 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
   const focusedOption = interaction.options.getFocused(true);
 
   if (focusedOption.name === "map") {
+    // Determine context based on subcommand. If the user is in /match add, 'mode' won't exist.
+    // However, discord.js will try to fetch 'mode' and return null if not present.
     const mode = interaction.options.getString("mode") as GameMode | null;
     let choices: string[] = [];
 
     if (mode && MapsByMode[mode]) {
       choices = MapsByMode[mode];
     } else {
-      choices = Object.values(MapsByMode).flat();
+      choices = AllMaps;
     }
 
     const filtered = choices
@@ -98,9 +91,20 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   const subcommand = interaction.options.getSubcommand();
 
   if (subcommand === "add") {
-    const mode = interaction.options.getString("mode", true);
     const map = interaction.options.getString("map", true);
     const result = interaction.options.getString("result", true);
+    
+    const inferredMode = getModeForMap(map);
+
+    if (!inferredMode) {
+      await interaction.reply({
+        content: `❌ Could not find game mode for map **${map}**. Please ensure you select a valid map from the autocomplete list.`,
+        flags: [MessageFlags.Ephemeral]
+      });
+      return;
+    }
+    
+    const mode = inferredMode;
 
     const players = new Set([interaction.user.id]);
     const p2 = interaction.options.getUser("player2");
