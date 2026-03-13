@@ -26,3 +26,8 @@ export const Result = {
 } as const;
 
 export type Result = keyof typeof Result;
+
+export function isMapValidForMode(mode: GameMode, mapName: string): boolean {
+  const maps = MapsByMode[mode];
+  return maps ? maps.includes(mapName) : false;
+}
