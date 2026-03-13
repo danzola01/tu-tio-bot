@@ -10,8 +10,8 @@ export const GameMode = {
 export type GameMode = keyof typeof GameMode;
 
 export const MapsByMode: Record<GameMode, string[]> = {
-  CONTROL: ["Busan", "Ilios", "Lijiang Tower", "Nepal", "Oasis", "Antarctic Peninsula"],
-  ESCORT: ["Dorado", "Havana", "Junkertown", "Circuit Royal", "Rialto", "Route 66", "Watchpoint: Gibraltar", "Shambali Monastery"],
+  CONTROL: ["Antarctic Peninsula", "Busan", "Ilios", "Lijiang Tower", "Nepal", "Oasis", "Samoa"],
+  ESCORT: ["Circuit Royal", "Dorado", "Havana", "Junkertown", "Rialto", "Route 66", "Shambali Monastery", "Watchpoint: Gibraltar"],
   HYBRID: ["Blizzard World", "Eichenwalde", "Hollywood", "King's Row", "Midtown", "Numbani", "Paraíso"],
   PUSH: ["Colosseo", "Esperança", "New Queen Street", "Runasapi"],
   FLASHPOINT: ["New Junk City", "Suravasa"],
@@ -30,4 +30,13 @@ export type Result = keyof typeof Result;
 export function isMapValidForMode(mode: GameMode, mapName: string): boolean {
   const maps = MapsByMode[mode];
   return maps ? maps.includes(mapName) : false;
+}
+
+export function getModeForMap(mapName: string): GameMode | undefined {
+  for (const [mode, maps] of Object.entries(MapsByMode)) {
+    if (maps.includes(mapName)) {
+      return mode as GameMode;
+    }
+  }
+  return undefined;
 }
