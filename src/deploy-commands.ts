@@ -13,7 +13,13 @@ const logger = pino({
   },
 });
 
-const commands = [match.data.toJSON(), stats.data.toJSON(), leaderboard.data.toJSON(), undo.data.toJSON(), insights.data.toJSON()];
+const commands = [
+  match.data.toJSON(),
+  stats.data.toJSON(),
+  leaderboard.data.toJSON(),
+  undo.data.toJSON(),
+  insights.data.toJSON(),
+];
 
 const rest = new REST().setToken(config.DISCORD_TOKEN);
 
