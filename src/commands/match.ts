@@ -140,11 +140,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       await interaction.editReply("❌ An error occurred while saving the match.");
     }
   } else if (subcommand === "start") {
-    flowState.set(interaction.user.id, { squad: [interaction.user.id] });
+    const contextKey = `${interaction.guildId ?? "DM"}:${interaction.user.id}`;
+    flowState.set(contextKey, { squad: [interaction.user.id] });
 
     const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(
       new UserSelectMenuBuilder()
-        .setCustomId(`match:start:squad:${interaction.user.id}`)
+        .setCustomId(`match:start:squad:${contextKey}`)
         .setPlaceholder("Select up to 4 squadmates")
         .setMinValues(0)
         .setMaxValues(4)
