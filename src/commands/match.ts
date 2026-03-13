@@ -132,8 +132,41 @@ export async function execute(interaction: ChatInputCommandInteraction) {
         },
       });
 
+      // Calculate stats for this specific team composition
+      const teamResultGroups = await db.match.groupBy({
+        where: {
+          guildId: interaction.guildId!,
+          deletedAt: null,
+          groupSize: playerArray.length,
+          AND: playerArray.map(userId => ({
+            players: {
+              some: { userId }
+            }
+          }))
+        },
+        by: ["result"],
+        _count: {
+          _all: true,
+        },
+      });
+
+      let teamWins = 0;
+      let teamLosses = 0;
+
+      for (const group of teamResultGroups) {
+        if (group.result === Result.WIN) {
+          teamWins = group._count._all;
+        } else if (group.result === Result.LOSS) {
+          teamLosses = group._count._all;
+        }
+      }
+
+      const teamTotal = teamWins + teamLosses;
+      const teamWinrate = teamTotal > 0 ? ((teamWins / teamTotal) * 100).toFixed(1) : "0.0";
+      const teamMentions = playerArray.map(id => `<@${id}>`).join(", ");
+
       await interaction.editReply(
-        `✅ Recorded **${result}** on **${map}** (${mode}) with a squad of ${playerArray.length}. Match ID: \`${match.id}\``
+        `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamWins}W - ${teamLosses}L (${teamWinrate}% WR)`
       );
     } catch (error) {
       logger.error(error, "Failed to save match");
@@ -267,10 +300,43 @@ export async function handleComponent(
           },
         });
 
+        // Calculate stats for this specific team composition
+        const teamStats = await db.match.groupBy({
+          where: {
+            guildId: interaction.guildId!,
+            deletedAt: null,
+            groupSize: squad.length,
+            AND: squad.map(userId => ({
+              players: {
+                some: { userId }
+              }
+            }))
+          },
+          by: ["result"],
+          _count: {
+            _all: true,
+          },
+        });
+
+        let teamWins = 0;
+        let teamLosses = 0;
+
+        for (const stat of teamStats) {
+          if (stat.result === Result.WIN) {
+            teamWins = stat._count._all;
+          } else if (stat.result === Result.LOSS) {
+            teamLosses = stat._count._all;
+          }
+        }
+
+        const teamTotal = teamWins + teamLosses;
+        const teamWinrate = teamTotal > 0 ? ((teamWins / teamTotal) * 100).toFixed(1) : "0.0";
+        const teamMentions = squad.map(id => `<@${id}>`).join(", ");
+
         flowState.delete(userId);
 
         await interaction.update({
-          content: `✅ Recorded **${result}** on **${map}** (${mode}) with a squad of ${squad.length}. Match ID: \`${match.id}\``,
+          content: `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamWins}W - ${teamLosses}L (${teamWinrate}% WR)`,
           components: [],
         });
       } catch (error) {
