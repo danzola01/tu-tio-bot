@@ -71,7 +71,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
   } else if (interaction.isStringSelectMenu() || interaction.isButton()) {
     const [commandName] = interaction.customId.split(":");
-    const command = commands.get(commandName);
+    const command = commands.get(commandName!);
 
     if (command && command.handleComponent) {
       try {

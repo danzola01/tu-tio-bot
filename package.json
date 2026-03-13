@@ -9,6 +9,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "deploy": "tsx src/deploy-commands.ts",
+    "wipe": "tsx src/scripts/wipe-history.ts",
     "postinstall": "prisma generate"
   },
   "dependencies": {

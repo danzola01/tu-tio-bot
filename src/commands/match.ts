@@ -191,9 +191,9 @@ export async function handleComponent(
         components: [row],
       });
     } else if (step === "result" && interaction.isButton()) {
-      const mode = parts[3];
-      const map = parts[4];
-      const result = parts[5];
+      const mode = parts[3]!;
+      const map = parts[4]!;
+      const result = parts[5]!;
 
       try {
         const match = await db.match.create({
