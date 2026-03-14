@@ -1,6 +1,7 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import { logger } from "../infra/logger.js";
 import { Services } from "../index.js";
+import { Result } from "../services/mapService.js";
 
 export const data = new SlashCommandBuilder()
   .setName("leaderboard")
@@ -18,16 +19,27 @@ export async function execute(interaction: ChatInputCommandInteraction, services
       return;
     }
 
+    const leaderboardWithStreaks = await Promise.all(leaderboard.map(async (u) => {
+      const streak = await services.stats.getUserStreak(interaction.guildId!, u.userId);
+      return { ...u, streak };
+    }));
+
     let message = `🏆 **Server Leaderboard** (Min. ${MIN_MATCHES} matches)\n\n`;
     
-    leaderboard.forEach((user, index) => {
+    leaderboardWithStreaks.forEach((user, index) => {
       let medal = "";
       if (index === 0) medal = "🥇 ";
       else if (index === 1) medal = "🥈 ";
       else if (index === 2) medal = "🥉 ";
       else medal = `${index + 1}. `;
 
-      message += `${medal}<@${user.userId}>: **${user.winRate.toFixed(1)}%** (${user.wins}W - ${user.losses}L)\n`;
+      let streakStr = "";
+      if (user.streak && user.streak.count >= 2) {
+        if (user.streak.type === Result.WIN) streakStr = ` 🔥 ${user.streak.count}W`;
+        else if (user.streak.type === Result.LOSS) streakStr = ` 🧊 ${user.streak.count}L`;
+      }
+
+      message += `${medal}<@${user.userId}>: **${user.winRate.toFixed(1)}%** (${user.wins}W - ${user.losses}L)${streakStr}\n`;
     });
 
     await interaction.editReply(message);

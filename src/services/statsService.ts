@@ -49,6 +49,11 @@ export interface TeamBreakdownEntry {
   winRate: number;
 }
 
+export interface UserStreak {
+  type: Result;
+  count: number;
+}
+
 export function calculateWinRate(wins: number, losses: number): number {
   const total = wins + losses;
   if (total === 0) return 0;
@@ -281,5 +286,33 @@ export class StatsService {
       total: s.wins + s.losses,
       winRate: calculateWinRate(s.wins, s.losses)
     })).sort((a, b) => b.total - a.total);
+  }
+
+  async getUserStreak(guildId: string, userId: string): Promise<UserStreak | null> {
+    const matches = await this.db.match.findMany({
+      where: {
+        guildId,
+        deletedAt: null,
+        players: { some: { userId } }
+      },
+      orderBy: { playedAt: 'desc' },
+      select: { result: true },
+      take: 50
+    });
+
+    if (matches.length === 0) return null;
+
+    const streakType = matches[0]!.result as Result;
+    let streakCount = 0;
+
+    for (const m of matches) {
+      if (m.result === streakType) {
+        streakCount++;
+      } else {
+        break;
+      }
+    }
+
+    return { type: streakType, count: streakCount };
   }
 }
