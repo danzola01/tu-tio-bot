@@ -35,7 +35,7 @@ export const data = new SlashCommandBuilder()
       .setDescription("Filter by role played")
       .setRequired(false)
       .addChoices(
-        ...Object.values(Role).map((r) => ({ name: r, value: r }))
+        ...Object.keys(Role).map((r) => ({ name: r, value: r }))
       )
   )
   .addStringOption((option) =>
@@ -127,12 +127,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     if (playerArray.length > 0) {
       for (const userId of playerArray) {
         const playerCondition: any = { userId };
-        
-        // Apply role/hero filters only to the primary queried user (user1)
-        if (userId === playerArray[0]) {
-          if (roleFilter) playerCondition.role = roleFilter;
-          if (heroFilter) playerCondition.hero = heroFilter;
-        }
+        if (roleFilter) playerCondition.role = roleFilter;
+        if (heroFilter) playerCondition.hero = heroFilter;
         playerFilters.push({ players: { some: playerCondition } });
       }
     } else if (roleFilter || heroFilter) {
@@ -186,7 +182,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       title = `📊 **Stats for Squad** (${playerArray.map(id => `<@${id}>`).join(", ")})`;
     }
     
-    let message = `${title}${mode ? ` for ${mode}` : ""}${map ? ` on ${map}` : ""}:\n\n`;
+    let message = `${title}${mode ? ` for ${mode}` : ""}${map ? ` on ${map}` : ""}${roleFilter ? ` as ${roleFilter}` : ""}${heroFilter ? ` playing ${heroFilter}` : ""}:\n\n`;
     message += `**Overall**: ${totalWins}W - ${totalLosses}L (${winrate}% WR)\n\n`;
 
     // Add team breakdown if applicable

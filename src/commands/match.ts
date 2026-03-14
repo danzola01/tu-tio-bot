@@ -13,7 +13,6 @@ import {
   MessageFlags
 } from "discord.js";
 import { GameMode, MapsByMode, Result, getModeForMap, AllMaps } from "../services/mapService.js";
-import { Role, AllHeroes, HeroesByRole } from "../services/heroService.js";
 import { db } from "../infra/db.js";
 import pino from "pino";
 

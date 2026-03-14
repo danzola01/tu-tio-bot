@@ -1,23 +1,23 @@
 export const Role = {
-  TANK: "Tank",
-  DAMAGE: "Damage",
-  SUPPORT: "Support",
+  TANK: "TANK",
+  DAMAGE: "DAMAGE",
+  SUPPORT: "SUPPORT",
 } as const;
 
-export type Role = typeof Role[keyof typeof Role];
+export type Role = keyof typeof Role;
 
 export const HeroesByRole: Record<Role, string[]> = {
-  Tank: [
+  TANK: [
     "D.Va", "Domina", "Doomfist", "Hazard", "Junker Queen", "Mauga", "Orisa",
     "Ramattra", "Reinhardt", "Roadhog", "Sigma", "Winston",
     "Wrecking Ball", "Zarya"
   ],
-  Damage: [
+  DAMAGE: [
     "Anran", "Ashe", "Bastion", "Cassidy", "Echo", "Emre", "Genji", "Hanzo",
     "Junkrat", "Mei", "Pharah", "Reaper", "Sojourn", "Soldier: 76",
     "Sombra", "Symmetra", "Torbjörn", "Tracer", "Vendetta", "Venture", "Widowmaker"
   ],
-  Support: [
+  SUPPORT: [
     "Ana", "Baptiste", "Brigitte", "Illari", "Jetpack Cat", "Juno", "Kiriko",
     "Lifeweaver", "Lúcio", "Mercy", "Mizuki", "Moira", "Zenyatta"
   ],
