@@ -1,24 +1,31 @@
 import { Client, GatewayIntentBits, Collection, Events, MessageFlags } from "discord.js";
 import { config } from "./config.js";
-import pino from "pino";
+import { logger } from "./infra/logger.js";
+import { db } from "./infra/db.js";
+import { MatchService } from "./services/matchService.js";
+import { StatsService } from "./services/statsService.js";
 import * as match from "./commands/match.js";
 import * as stats from "./commands/stats.js";
 import * as leaderboard from "./commands/leaderboard.js";
 import * as undo from "./commands/undo.js";
 import * as insights from "./commands/insights.js";
 
-const logger = pino({
-  transport: {
-    target: "pino-pretty",
-  },
-});
-
 export interface Command {
   data: any;
-  execute: (interaction: any) => Promise<void>;
+  execute: (interaction: any, services: Services) => Promise<void>;
   autocomplete?: (interaction: any) => Promise<void>;
-  handleComponent?: (interaction: any) => Promise<void>;
+  handleComponent?: (interaction: any, services: Services) => Promise<void>;
 }
+
+export interface Services {
+  match: MatchService;
+  stats: StatsService;
+}
+
+const services: Services = {
+  match: new MatchService(db),
+  stats: new StatsService(db),
+};
 
 const client = new Client({
   intents: [GatewayIntentBits.Guilds],
@@ -45,43 +52,37 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     try {
-      await command.execute(interaction);
+      await command.execute(interaction, services);
     } catch (error) {
       logger.error(error);
+      const errorMessage = {
+        content: "There was an error while executing this command!",
+        flags: [MessageFlags.Ephemeral],
+      };
+      
       if (interaction.replied || interaction.deferred) {
-        await interaction.followUp({
-          content: "There was an error while executing this command!",
-          flags: [MessageFlags.Ephemeral],
-        });
+        await interaction.followUp(errorMessage);
       } else {
-        await interaction.reply({
-          content: "There was an error while executing this command!",
-          flags: [MessageFlags.Ephemeral],
-        });
+        await interaction.reply(errorMessage);
       }
     }
   } else if (interaction.isAutocomplete()) {
     const command = commands.get(interaction.commandName);
 
-    if (!command) {
-      logger.error(`No command matching ${interaction.commandName} was found.`);
-      return;
-    }
-
-    try {
-      if (command.autocomplete) {
+    if (command?.autocomplete) {
+      try {
         await command.autocomplete(interaction);
+      } catch (error) {
+        logger.error(error);
       }
-    } catch (error) {
-      logger.error(error);
     }
   } else if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu() || interaction.isButton()) {
     const [commandName] = interaction.customId.split(":");
     const command = commands.get(commandName!);
 
-    if (command && command.handleComponent) {
+    if (command?.handleComponent) {
       try {
-        await command.handleComponent(interaction);
+        await command.handleComponent(interaction, services);
       } catch (error) {
         logger.error(error);
       }
