@@ -12,9 +12,14 @@ import {
   ButtonInteraction,
   MessageFlags
 } from "discord.js";
-import { GameMode, MapsByMode, Result, getModeForMap, AllMaps } from "../services/mapService.js";
+import { GameMode, Result, getModeForMap, AllMaps, MapsByMode } from "../services/mapService.js";
+import { Role, AllHeroes, HeroesByRole } from "../services/heroService.js";
 import { logger } from "../infra/logger.js";
 import type { Services } from "../index.js";
+
+const isValidHeroName = (heroName: string | null): heroName is string => {
+  return !!heroName && AllHeroes.includes(heroName);
+};
 
 export const data = new SlashCommandBuilder()
   .setName("match")
@@ -40,10 +45,30 @@ export const data = new SlashCommandBuilder()
             { name: "Loss", value: Result.LOSS }
           )
       )
+      .addStringOption((option) =>
+        option
+          .setName("role")
+          .setDescription("The role you played")
+          .setRequired(false)
+          .addChoices(
+            ...Object.values(Role).map((r) => ({ name: r, value: r }))
+          )
+      )
+      .addStringOption((option) =>
+        option
+          .setName("hero")
+          .setDescription("The hero you played")
+          .setRequired(false)
+          .setAutocomplete(true)
+      )
       .addUserOption(option => option.setName("player2").setDescription("Squadmate 2").setRequired(false))
+      .addStringOption(option => option.setName("player2_hero").setDescription("Hero played by Squadmate 2").setRequired(false).setAutocomplete(true))
       .addUserOption(option => option.setName("player3").setDescription("Squadmate 3").setRequired(false))
+      .addStringOption(option => option.setName("player3_hero").setDescription("Hero played by Squadmate 3").setRequired(false).setAutocomplete(true))
       .addUserOption(option => option.setName("player4").setDescription("Squadmate 4").setRequired(false))
+      .addStringOption(option => option.setName("player4_hero").setDescription("Hero played by Squadmate 4").setRequired(false).setAutocomplete(true))
       .addUserOption(option => option.setName("player5").setDescription("Squadmate 5").setRequired(false))
+      .addStringOption(option => option.setName("player5_hero").setDescription("Hero played by Squadmate 5").setRequired(false).setAutocomplete(true))
   )
   .addSubcommand((subcommand) =>
     subcommand
@@ -63,6 +88,25 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
     await interaction.respond(
       filtered.map((choice) => ({ name: choice, value: choice }))
     );
+  } else if (focusedOption.name.endsWith("hero")) {
+    const role = interaction.options.getString("role") as Role | null;
+    let choices: string[] = [];
+
+    if (focusedOption.name === "hero" && role && HeroesByRole[role]) {
+      choices = HeroesByRole[role];
+    } else {
+      choices = AllHeroes;
+    }
+
+    const filtered = choices
+      .filter((choice) =>
+        choice.toLowerCase().includes(focusedOption.value.toLowerCase())
+      )
+      .slice(0, 25);
+
+    await interaction.respond(
+      filtered.map((choice) => ({ name: choice, value: choice }))
+    );
   }
 }
 
@@ -75,24 +119,42 @@ export async function execute(interaction: ChatInputCommandInteraction, services
   if (subcommand === "add") {
     const map = interaction.options.getString("map", true);
     const result = interaction.options.getString("result", true);
+    const role = interaction.options.getString("role");
+    const rawHero = interaction.options.getString("hero");
+    const hero = isValidHeroName(rawHero) ? rawHero : null;
     
     const mode = getModeForMap(map);
 
     if (!mode) {
       await interaction.reply({
         content: `❌ Could not find game mode for map **${map}**. Please ensure you select a valid map from the autocomplete list.`,
-        flags: MessageFlags.Ephemeral
+        flags: [MessageFlags.Ephemeral]
       });
       return;
     }
     
-    const players = new Set([interaction.user.id]);
+    const playersMap = new Map<string, { role: string | null, hero: string | null }>();
+    playersMap.set(interaction.user.id, { role, hero });
+
+    const addSquadmate = (num: number) => {
+      const p = interaction.options.getUser(`player${num}`);
+      const rawH = interaction.options.getString(`player${num}_hero`);
+      const h = isValidHeroName(rawH) ? rawH : null;
+      if (p && !p.bot) {
+        playersMap.set(p.id, { role: null, hero: h });
+      }
+    };
+
     for (let i = 2; i <= 5; i++) {
-        const u = interaction.options.getUser(`player${i}`);
-        if (u && !u.bot) players.add(u.id);
+      addSquadmate(i);
     }
 
-    const playerArray = Array.from(players);
+    const playerArray = Array.from(playersMap.entries()).map(([userId, data]) => ({
+      userId,
+      role: data.role,
+      hero: data.hero
+    }));
+
     await interaction.deferReply();
 
     try {
@@ -102,11 +164,12 @@ export async function execute(interaction: ChatInputCommandInteraction, services
           mode,
           map,
           result,
-          playerIds: playerArray
+          players: playerArray
       });
 
-      const teamStats = await services.stats.getTeamStats(interaction.guildId!, playerArray);
-      const teamMentions = playerArray.map(id => `<@${id}>`).join(", ");
+      const userIds = playerArray.map(p => p.userId);
+      const teamStats = await services.stats.getTeamStats(interaction.guildId!, userIds);
+      const teamMentions = userIds.map(id => `<@${id}>`).join(", ");
 
       await interaction.editReply(
         `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamStats.wins}W - ${teamStats.losses}L (${teamStats.winRate.toFixed(1)}% WR)`
@@ -130,7 +193,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     await interaction.reply({
       content: "Step 1: Who did you play with? (You are automatically included, select 0 if solo)",
       components: [row],
-      flags: MessageFlags.Ephemeral,
+      flags: [MessageFlags.Ephemeral],
     });
   }
 }
@@ -149,7 +212,7 @@ export async function handleComponent(
   if (interaction.user.id !== userId) {
     await interaction.reply({
       content: "This is not your interaction!",
-      flags: MessageFlags.Ephemeral,
+      flags: [MessageFlags.Ephemeral],
     });
     return;
   }
@@ -183,13 +246,12 @@ export async function handleComponent(
       state.mode = mode;
       flowState.set(contextKey, state);
 
-      const maps = MapsByMode[mode];
       const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
         new StringSelectMenuBuilder()
           .setCustomId(`match:start:map:${contextKey}`)
           .setPlaceholder("Select the Map")
           .addOptions(
-            maps.map((map) => ({
+            MapsByMode[mode].map((map: string) => ({
               label: map,
               value: map,
             }))
@@ -237,7 +299,7 @@ export async function handleComponent(
             mode,
             map,
             result,
-            playerIds: squad
+            players: squad.map(id => ({ userId: id }))
         });
 
         const teamStats = await services.stats.getTeamStats(interaction.guildId!, squad);

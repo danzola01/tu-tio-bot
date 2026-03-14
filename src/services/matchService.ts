@@ -1,12 +1,18 @@
 import type { DbClient } from "../infra/db.js";
 
+export interface AddMatchPlayerInput {
+  userId: string;
+  role?: string | null;
+  hero?: string | null;
+}
+
 export interface AddMatchInput {
   guildId: string;
   reportedByUserId: string;
   mode: string;
   map: string;
   result: string;
-  playerIds: string[];
+  players: AddMatchPlayerInput[];
 }
 
 export class MatchService {
@@ -20,9 +26,13 @@ export class MatchService {
         mode: input.mode,
         map: input.map,
         result: input.result,
-        groupSize: input.playerIds.length,
+        groupSize: input.players.length,
         players: {
-          create: input.playerIds.map(id => ({ userId: id }))
+          create: input.players.map(p => ({
+            userId: p.userId,
+            role: p.role,
+            hero: p.hero
+          }))
         }
       },
     });

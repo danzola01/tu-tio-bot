@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction, AttachmentBuilder, MessageFlags } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction, AttachmentBuilder } from "discord.js";
 import { Result, GameMode, MapsByMode } from "../services/mapService.js";
 import { Role, AllHeroes, HeroesByRole } from "../services/heroService.js";
 import { logger } from "../infra/logger.js";

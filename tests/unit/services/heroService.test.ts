@@ -41,12 +41,35 @@ describe("heroService", () => {
       expect(HeroesByRole.SUPPORT).toContain("Mercy");
       expect(HeroesByRole.SUPPORT).toContain("Lúcio");
     });
+
+    it("does not assign any hero to multiple roles", () => {
+      const roleByHero = new Map<string, keyof typeof Role>();
+      const duplicates: string[] = [];
+
+      for (const [role, heroes] of Object.entries(HeroesByRole) as [keyof typeof Role, string[]][]) {
+        for (const hero of heroes) {
+          const existingRole = roleByHero.get(hero);
+          if (existingRole && existingRole !== role) {
+            duplicates.push(hero);
+          } else if (!existingRole) {
+            roleByHero.set(hero, role);
+          }
+        }
+      }
+
+      expect(duplicates).toEqual([]);
+    });
   });
 
   describe("AllHeroes", () => {
     it("contains all heroes from every role", () => {
       const total = Object.values(HeroesByRole).reduce((sum, heroes) => sum + heroes.length, 0);
       expect(AllHeroes.length).toBe(total);
+    });
+
+    it("contains no duplicate heroes", () => {
+      const uniqueHeroes = new Set(AllHeroes);
+      expect(uniqueHeroes.size).toBe(AllHeroes.length);
     });
 
     it("is sorted alphabetically", () => {

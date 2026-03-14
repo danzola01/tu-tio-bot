@@ -17,7 +17,7 @@ describe("StatsService integration", () => {
       mode: "ESCORT",
       map: "Dorado",
       result: "WIN",
-      playerIds: ["user-1"]
+      players: [{ userId: "user-1" }]
     });
     await matchService.addMatch({
       guildId,
@@ -25,7 +25,7 @@ describe("StatsService integration", () => {
       mode: "ESCORT",
       map: "Route 66",
       result: "WIN",
-      playerIds: ["user-1"]
+      players: [{ userId: "user-1" }]
     });
     await matchService.addMatch({
       guildId,
@@ -33,7 +33,7 @@ describe("StatsService integration", () => {
       mode: "ESCORT",
       map: "Dorado",
       result: "LOSS",
-      playerIds: ["user-1"]
+      players: [{ userId: "user-1" }]
     });
 
     const stats = await statsService.getStats({ guildId });
@@ -54,7 +54,7 @@ describe("StatsService integration", () => {
       mode: "ESCORT",
       map: "Dorado",
       result: "WIN",
-      playerIds: ["user-1"]
+      players: [{ userId: "user-1" }]
     });
     // CONTROL loss
     await matchService.addMatch({
@@ -63,7 +63,7 @@ describe("StatsService integration", () => {
       mode: "CONTROL",
       map: "Busan",
       result: "LOSS",
-      playerIds: ["user-1"]
+      players: [{ userId: "user-1" }]
     });
 
     const escortStats = await statsService.getStats({ guildId, mode: "ESCORT" });
@@ -86,7 +86,7 @@ describe("StatsService integration", () => {
       mode: "ESCORT",
       map: "Dorado",
       result: "WIN",
-      playerIds: ["user-1"]
+      players: [{ userId: "user-1" }]
     });
     await matchService.addMatch({
       guildId,
@@ -94,7 +94,7 @@ describe("StatsService integration", () => {
       mode: "ESCORT",
       map: "Route 66",
       result: "LOSS",
-      playerIds: ["user-1"]
+      players: [{ userId: "user-1" }]
     });
 
     const doradoStats = await statsService.getStats({ guildId, map: "Dorado" });
