@@ -40,6 +40,16 @@ export const data = new SlashCommandBuilder()
       .setRequired(false)
       .setAutocomplete(true)
   )
+  .addStringOption((option) =>
+    option
+      .setName("graph")
+      .setDescription("Type of chart to display")
+      .setRequired(false)
+      .addChoices(
+        { name: "Pie Chart (Wins/Losses)", value: "pie" },
+        { name: "Line Chart (Winrate Over Time)", value: "line" }
+      )
+  )
   .addUserOption(option => option.setName("user").setDescription("Filter by a specific player").setRequired(false));
 
 export async function autocomplete(interaction: AutocompleteInteraction) {
@@ -67,6 +77,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     const role = interaction.options.getString("role");
     const hero = interaction.options.getString("hero");
     const user = interaction.options.getUser("user");
+    const graphType = interaction.options.getString("graph") || "pie";
 
     const filter = {
         guildId: interaction.guildId!,
@@ -97,28 +108,66 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     let attachment: AttachmentBuilder | undefined;
     if (overall.total > 0) {
       const chart = new (QuickChart as any)();
-      chart.setConfig({
-        type: "outlabeledPie",
-        data: {
-          labels: ["Wins", "Losses"],
-          datasets: [{
-            data: [overall.wins, overall.losses],
-            backgroundColor: ["#4caf50", "#f44336"]
-          }]
-        },
-        options: {
-          plugins: {
-            legend: { display: false },
-            outlabels: {
-              text: "%l %p",
-              color: "white",
-              stretch: 35,
-              font: { resizable: true, minSize: 12, maxSize: 18 }
+      
+      if (graphType === "pie") {
+        chart.setConfig({
+          type: "outlabeledPie",
+          data: {
+            labels: ["Wins", "Losses"],
+            datasets: [{
+              data: [overall.wins, overall.losses],
+              backgroundColor: ["#4caf50", "#f44336"]
+            }]
+          },
+          options: {
+            plugins: {
+              legend: { display: false },
+              outlabels: {
+                text: "%l %p",
+                color: "white",
+                stretch: 35,
+                font: { resizable: true, minSize: 12, maxSize: 18 }
+              }
             }
           }
-        }
-      });
-      chart.setBackgroundColor("transparent");
+        });
+      } else {
+        const matches = await services.stats.getMatches(filter);
+        const labels: string[] = [];
+        const winrateData: number[] = [];
+        let cumulativeWins = 0;
+        let cumulativeTotal = 0;
+        
+        matches.forEach((m, i) => {
+          cumulativeTotal++;
+          if (m.result === Result.WIN) cumulativeWins++;
+          labels.push(`M${i + 1}`);
+          winrateData.push(parseFloat(((cumulativeWins / cumulativeTotal) * 100).toFixed(1)));
+        });
+
+        chart.setConfig({
+          type: "line",
+          data: {
+            labels,
+            datasets: [{
+              label: "Winrate %",
+              data: winrateData,
+              fill: false,
+              borderColor: "#2196f3",
+              backgroundColor: "#2196f3",
+              tension: 0.1
+            }]
+          },
+          options: {
+            scales: {
+              yAxes: [{ ticks: { beginAtZero: true, max: 100 } }],
+              xAxes: [{ ticks: { display: labels.length <= 20 } }]
+            }
+          }
+        });
+      }
+
+      chart.setBackgroundColor("white");
       const chartBuffer = await chart.toBinary();
       attachment = new AttachmentBuilder(chartBuffer, { name: "chart.png" });
     }

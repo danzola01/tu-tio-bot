@@ -63,7 +63,7 @@ export function calculateWinRate(wins: number, losses: number): number {
 export class StatsService {
   constructor(private db: DbClient) {}
 
-  async getStats(input: GetStatsInput): Promise<StatsResult> {
+  private getWhereClause(input: GetStatsInput) {
     const where: any = {
       guildId: input.guildId,
       deletedAt: null,
@@ -84,6 +84,11 @@ export class StatsService {
     if (playerFilters.length > 0) {
       where.AND = playerFilters;
     }
+    return where;
+  }
+
+  async getStats(input: GetStatsInput): Promise<StatsResult> {
+    const where = this.getWhereClause(input);
 
     const results = await this.db.match.groupBy({
       by: ["result"],
@@ -110,6 +115,15 @@ export class StatsService {
       total,
       winRate,
     };
+  }
+
+  async getMatches(input: GetStatsInput) {
+    const where = this.getWhereClause(input);
+    return await this.db.match.findMany({
+      where,
+      orderBy: { playedAt: 'asc' },
+      include: { players: true }
+    });
   }
 
   async getTeamStats(guildId: string, playerIds: string[]): Promise<StatsResult> {
@@ -247,22 +261,7 @@ export class StatsService {
   }
 
   async getTeamBreakdown(guildId: string, filter: GetStatsInput): Promise<TeamBreakdownEntry[]> {
-    const where: any = {
-      guildId,
-      deletedAt: null,
-    };
-    if (filter.mode) where.mode = filter.mode;
-    if (filter.map) where.map = filter.map;
-
-    const playerFilters: any[] = [];
-    if (filter.userId || filter.role || filter.hero) {
-        const cond: any = {};
-        if (filter.userId) cond.userId = filter.userId;
-        if (filter.role) cond.role = filter.role;
-        if (filter.hero) cond.hero = filter.hero;
-        playerFilters.push({ players: { some: cond } });
-    }
-    if (playerFilters.length > 0) where.AND = playerFilters;
+    const where = this.getWhereClause(filter);
 
     const matches = await this.db.match.findMany({
       where,
