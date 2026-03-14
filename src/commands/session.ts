@@ -1,46 +1,19 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
-import { db } from "../infra/db.js";
 import { Result } from "../services/mapService.js";
-import pino from "pino";
-
-const logger = pino({
-  transport: {
-    target: "pino-pretty",
-  },
-});
+import { logger } from "../infra/logger.js";
+import type { Services } from "../index.js";
 
 export const data = new SlashCommandBuilder()
   .setName("session")
-  .setDescription("View your match statistics for the last 24 hours")
+  .setDescription("View your match statistics for the last 12 hours")
   .addUserOption(option => option.setName("user").setDescription("View session for a specific player").setRequired(false));
 
-export async function execute(interaction: ChatInputCommandInteraction) {
+export async function execute(interaction: ChatInputCommandInteraction, services: Services) {
   await interaction.deferReply();
 
   try {
     const targetUser = interaction.options.getUser("user") || interaction.user;
-    
-    // Calculate timestamp for 12 hours ago (typically a "session" is a single evening)
-    const sessionStartTime = new Date();
-    sessionStartTime.setHours(sessionStartTime.getHours() - 12);
-
-    const matches = await db.match.findMany({
-      where: {
-        guildId: interaction.guildId!,
-        deletedAt: null,
-        playedAt: {
-          gte: sessionStartTime,
-        },
-        players: {
-          some: {
-            userId: targetUser.id
-          }
-        }
-      },
-      orderBy: {
-        playedAt: "desc" // latest first
-      }
-    });
+    const matches = await services.stats.getSessionMatches(interaction.guildId!, targetUser.id, 12);
 
     if (matches.length === 0) {
       await interaction.editReply(`🌙 <@${targetUser.id}> hasn't played any matches in the last 12 hours. Time to queue up!`);

@@ -13,14 +13,8 @@ import {
   MessageFlags
 } from "discord.js";
 import { GameMode, MapsByMode, Result, getModeForMap, AllMaps } from "../services/mapService.js";
-import { db } from "../infra/db.js";
-import pino from "pino";
-
-const logger = pino({
-  transport: {
-    target: "pino-pretty",
-  },
-});
+import { logger } from "../infra/logger.js";
+import type { Services } from "../index.js";
 
 export const data = new SlashCommandBuilder()
   .setName("match")
@@ -61,21 +55,9 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
   const focusedOption = interaction.options.getFocused(true);
 
   if (focusedOption.name === "map") {
-    // Determine context based on subcommand. If the user is in /match add, 'mode' won't exist.
-    // However, discord.js will try to fetch 'mode' and return null if not present.
-    const mode = interaction.options.getString("mode") as GameMode | null;
-    let choices: string[] = [];
-
-    if (mode && MapsByMode[mode]) {
-      choices = MapsByMode[mode];
-    } else {
-      choices = AllMaps;
-    }
-
+    const choices = AllMaps;
     const filtered = choices
-      .filter((choice) =>
-        choice.toLowerCase().includes(focusedOption.value.toLowerCase())
-      )
+      .filter((choice) => choice.toLowerCase().includes(focusedOption.value.toLowerCase()))
       .slice(0, 25);
 
     await interaction.respond(
@@ -87,90 +69,47 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
 // In-memory cache for the interactive flow
 const flowState = new Map<string, { squad: string[], mode?: string, map?: string }>();
 
-export async function execute(interaction: ChatInputCommandInteraction) {
+export async function execute(interaction: ChatInputCommandInteraction, services: Services) {
   const subcommand = interaction.options.getSubcommand();
 
   if (subcommand === "add") {
     const map = interaction.options.getString("map", true);
     const result = interaction.options.getString("result", true);
     
-    const inferredMode = getModeForMap(map);
+    const mode = getModeForMap(map);
 
-    if (!inferredMode) {
+    if (!mode) {
       await interaction.reply({
         content: `❌ Could not find game mode for map **${map}**. Please ensure you select a valid map from the autocomplete list.`,
-        flags: [MessageFlags.Ephemeral]
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
     
-    const mode = inferredMode;
-
     const players = new Set([interaction.user.id]);
-    const p2 = interaction.options.getUser("player2");
-    const p3 = interaction.options.getUser("player3");
-    const p4 = interaction.options.getUser("player4");
-    const p5 = interaction.options.getUser("player5");
-
-    if (p2 && !p2.bot) players.add(p2.id);
-    if (p3 && !p3.bot) players.add(p3.id);
-    if (p4 && !p4.bot) players.add(p4.id);
-    if (p5 && !p5.bot) players.add(p5.id);
+    for (let i = 2; i <= 5; i++) {
+        const u = interaction.options.getUser(`player${i}`);
+        if (u && !u.bot) players.add(u.id);
+    }
 
     const playerArray = Array.from(players);
-
     await interaction.deferReply();
 
     try {
-      const match = await db.match.create({
-        data: {
+      const match = await services.match.addMatch({
           guildId: interaction.guildId!,
           reportedByUserId: interaction.user.id,
           mode,
           map,
           result,
-          groupSize: playerArray.length,
-          players: {
-            create: playerArray.map(id => ({ userId: id }))
-          }
-        },
+          playerIds: playerArray
       });
 
-      // Calculate stats for this specific team composition
-      const teamResultGroups = await db.match.groupBy({
-        where: {
-          guildId: interaction.guildId!,
-          deletedAt: null,
-          groupSize: playerArray.length,
-          AND: playerArray.map(userId => ({
-            players: {
-              some: { userId }
-            }
-          }))
-        },
-        by: ["result"],
-        _count: {
-          _all: true,
-        },
-      });
-
-      let teamWins = 0;
-      let teamLosses = 0;
-
-      for (const group of teamResultGroups) {
-        if (group.result === Result.WIN) {
-          teamWins = group._count._all;
-        } else if (group.result === Result.LOSS) {
-          teamLosses = group._count._all;
-        }
-      }
-
-      const teamTotal = teamWins + teamLosses;
-      const teamWinrate = teamTotal > 0 ? ((teamWins / teamTotal) * 100).toFixed(1) : "0.0";
+      const teamStats = await services.stats.getTeamStats(interaction.guildId!, playerArray);
       const teamMentions = playerArray.map(id => `<@${id}>`).join(", ");
 
       await interaction.editReply(
-        `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamWins}W - ${teamLosses}L (${teamWinrate}% WR)`
+        `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamStats.wins}W - ${teamStats.losses}L (${teamStats.winRate.toFixed(1)}% WR)`
       );
     } catch (error) {
       logger.error(error, "Failed to save match");
@@ -191,38 +130,41 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     await interaction.reply({
       content: "Step 1: Who did you play with? (You are automatically included, select 0 if solo)",
       components: [row],
-      flags: [MessageFlags.Ephemeral],
+      flags: MessageFlags.Ephemeral,
     });
   }
 }
 
 export async function handleComponent(
-  interaction: StringSelectMenuInteraction | UserSelectMenuInteraction | ButtonInteraction
+  interaction: StringSelectMenuInteraction | UserSelectMenuInteraction | ButtonInteraction,
+  services: Services
 ) {
   const parts = interaction.customId.split(":");
   const [prefix, action, step] = parts;
-  const userId = parts[parts.length - 1];
+  const contextKey = parts[parts.length - 1]!;
 
   if (prefix !== "match") return;
+  
+  const [guildId, userId] = contextKey.split(":");
   if (interaction.user.id !== userId) {
     await interaction.reply({
       content: "This is not your interaction!",
-      flags: [MessageFlags.Ephemeral],
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
-  const state = flowState.get(userId) || { squad: [userId] };
+  const state = flowState.get(contextKey) || { squad: [userId] };
 
   if (action === "start") {
     if (step === "squad" && interaction.isUserSelectMenu()) {
       const selectedUsers = interaction.users.filter(u => !u.bot).map(u => u.id);
-      state.squad = Array.from(new Set([userId, ...selectedUsers]));
-      flowState.set(userId, state);
+      state.squad = Array.from(new Set([userId!, ...selectedUsers]));
+      flowState.set(contextKey, state);
 
       const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
         new StringSelectMenuBuilder()
-          .setCustomId(`match:start:mode:${userId}`)
+          .setCustomId(`match:start:mode:${contextKey}`)
           .setPlaceholder("Select the Game Mode")
           .addOptions(
             Object.keys(GameMode).map((mode) => ({
@@ -239,13 +181,12 @@ export async function handleComponent(
     } else if (step === "mode" && interaction.isStringSelectMenu()) {
       const mode = interaction.values[0] as GameMode;
       state.mode = mode;
-      flowState.set(userId, state);
+      flowState.set(contextKey, state);
 
       const maps = MapsByMode[mode];
-
       const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
         new StringSelectMenuBuilder()
-          .setCustomId(`match:start:map:${userId}`)
+          .setCustomId(`match:start:map:${contextKey}`)
           .setPlaceholder("Select the Map")
           .addOptions(
             maps.map((map) => ({
@@ -263,15 +204,15 @@ export async function handleComponent(
       const map = interaction.values[0];
       if (!map) return;
       state.map = map;
-      flowState.set(userId, state);
+      flowState.set(contextKey, state);
 
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
-          .setCustomId(`match:start:result:WIN:${userId}`)
+          .setCustomId(`match:start:result:WIN:${contextKey}`)
           .setLabel("Win")
           .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
-          .setCustomId(`match:start:result:LOSS:${userId}`)
+          .setCustomId(`match:start:result:LOSS:${contextKey}`)
           .setLabel("Loss")
           .setStyle(ButtonStyle.Danger)
       );
@@ -290,57 +231,22 @@ export async function handleComponent(
       }
 
       try {
-        const match = await db.match.create({
-          data: {
+        const match = await services.match.addMatch({
             guildId: interaction.guildId!,
             reportedByUserId: interaction.user.id,
             mode,
             map,
             result,
-            groupSize: squad.length,
-            players: {
-              create: squad.map(id => ({ userId: id }))
-            }
-          },
+            playerIds: squad
         });
 
-        // Calculate stats for this specific team composition
-        const teamStats = await db.match.groupBy({
-          where: {
-            guildId: interaction.guildId!,
-            deletedAt: null,
-            groupSize: squad.length,
-            AND: squad.map(userId => ({
-              players: {
-                some: { userId }
-              }
-            }))
-          },
-          by: ["result"],
-          _count: {
-            _all: true,
-          },
-        });
-
-        let teamWins = 0;
-        let teamLosses = 0;
-
-        for (const stat of teamStats) {
-          if (stat.result === Result.WIN) {
-            teamWins = stat._count._all;
-          } else if (stat.result === Result.LOSS) {
-            teamLosses = stat._count._all;
-          }
-        }
-
-        const teamTotal = teamWins + teamLosses;
-        const teamWinrate = teamTotal > 0 ? ((teamWins / teamTotal) * 100).toFixed(1) : "0.0";
+        const teamStats = await services.stats.getTeamStats(interaction.guildId!, squad);
         const teamMentions = squad.map(id => `<@${id}>`).join(", ");
 
-        flowState.delete(userId);
+        flowState.delete(contextKey);
 
         await interaction.update({
-          content: `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamWins}W - ${teamLosses}L (${teamWinrate}% WR)`,
+          content: `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamStats.wins}W - ${teamStats.losses}L (${teamStats.winRate.toFixed(1)}% WR)`,
           components: [],
         });
       } catch (error) {

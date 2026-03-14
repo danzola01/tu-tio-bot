@@ -1,19 +1,21 @@
 import { REST, Routes } from "discord.js";
 import { config } from "./config.js";
-import pino from "pino";
+import { logger } from "./infra/logger.js";
 import * as match from "./commands/match.js";
 import * as stats from "./commands/stats.js";
 import * as leaderboard from "./commands/leaderboard.js";
 import * as undo from "./commands/undo.js";
+import * as insights from "./commands/insights.js";
 import * as session from "./commands/session.js";
 
-const logger = pino({
-  transport: {
-    target: "pino-pretty",
-  },
-});
-
-const commands = [match.data.toJSON(), stats.data.toJSON(), leaderboard.data.toJSON(), undo.data.toJSON(), session.data.toJSON()];
+const commands = [
+  match.data.toJSON(),
+  stats.data.toJSON(),
+  leaderboard.data.toJSON(),
+  undo.data.toJSON(),
+  insights.data.toJSON(),
+  session.data.toJSON(),
+];
 
 const rest = new REST().setToken(config.DISCORD_TOKEN);
 
