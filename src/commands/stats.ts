@@ -182,8 +182,16 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     if (playerArray.length > 0) {
       title = `📊 **Stats for Squad** (${playerArray.map(id => `<@${id}>`).join(", ")})`;
     }
+
+    const safeHeroFilter =
+      heroFilter &&
+      AllHeroes.some((h: any) =>
+        typeof h === "string" ? h === heroFilter : h?.name === heroFilter,
+      )
+        ? heroFilter
+        : undefined;
     
-    let message = `${title}${mode ? ` for ${mode}` : ""}${map ? ` on ${map}` : ""}${roleFilter ? ` as ${roleFilter}` : ""}${heroFilter ? ` playing ${heroFilter}` : ""}:\n\n`;
+    let message = `${title}${mode ? ` for ${mode}` : ""}${map ? ` on ${map}` : ""}${roleFilter ? ` as ${roleFilter}` : ""}${safeHeroFilter ? ` playing ${safeHeroFilter}` : ""}:\n\n`;
     message += `**Overall**: ${totalWins}W - ${totalLosses}L (${winrate}% WR)\n\n`;
 
     // Add team breakdown if applicable
