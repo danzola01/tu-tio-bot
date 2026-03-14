@@ -2,7 +2,7 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteracti
 import { Result, GameMode, MapsByMode } from "../services/mapService.js";
 import { Role, AllHeroes, HeroesByRole } from "../services/heroService.js";
 import { logger } from "../infra/logger.js";
-import type { Services } from "../index.js";
+import type { Services } from "../types.js";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const QuickChart = require("quickchart-js");

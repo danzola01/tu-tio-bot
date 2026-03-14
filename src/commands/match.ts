@@ -7,15 +7,12 @@ import {
   UserSelectMenuBuilder,
   ButtonBuilder, 
   ButtonStyle,
-  StringSelectMenuInteraction,
-  UserSelectMenuInteraction,
-  ButtonInteraction,
   MessageFlags
 } from "discord.js";
 import { GameMode, Result, getModeForMap, AllMaps, MapsByMode } from "../services/mapService.js";
 import { Role, AllHeroes, HeroesByRole } from "../services/heroService.js";
 import { logger } from "../infra/logger.js";
-import type { Services } from "../index.js";
+import type { Services, AnyInteraction } from "../types.js";
 
 const isValidHeroName = (heroName: string | null): heroName is string => {
   return !!heroName && AllHeroes.includes(heroName);
@@ -110,15 +107,13 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
   }
 }
 
-// In-memory cache for the interactive flow
-const flowState = new Map<string, { squad: string[], mode?: string, map?: string }>();
-
+// In-memory cache for the interactive flow is now handled by FlowService
 export async function execute(interaction: ChatInputCommandInteraction, services: Services) {
   const subcommand = interaction.options.getSubcommand();
 
   if (subcommand === "add") {
     const map = interaction.options.getString("map", true);
-    const result = interaction.options.getString("result", true);
+    const result = interaction.options.getString("result", true) as Result;
     const role = interaction.options.getString("role");
     const rawHero = interaction.options.getString("hero");
     const hero = isValidHeroName(rawHero) ? rawHero : null;
@@ -180,7 +175,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     }
   } else if (subcommand === "start") {
     const contextKey = `${interaction.guildId ?? "DM"}:${interaction.user.id}`;
-    flowState.set(contextKey, { squad: [interaction.user.id] });
+    services.flow.set(contextKey, { squad: [interaction.user.id] });
 
     const row = new ActionRowBuilder<UserSelectMenuBuilder>().addComponents(
       new UserSelectMenuBuilder()
@@ -199,7 +194,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
 }
 
 export async function handleComponent(
-  interaction: StringSelectMenuInteraction | UserSelectMenuInteraction | ButtonInteraction,
+  interaction: AnyInteraction,
   services: Services
 ) {
   const parts = interaction.customId.split(":");
@@ -217,13 +212,13 @@ export async function handleComponent(
     return;
   }
 
-  const state = flowState.get(contextKey) || { squad: [userId] };
+  const state = services.flow.getOrCreate(contextKey, userId!);
 
   if (action === "start") {
     if (step === "squad" && interaction.isUserSelectMenu()) {
       const selectedUsers = interaction.users.filter(u => !u.bot).map(u => u.id);
       state.squad = Array.from(new Set([userId!, ...selectedUsers]));
-      flowState.set(contextKey, state);
+      services.flow.set(contextKey, state);
 
       const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
         new StringSelectMenuBuilder()
@@ -244,7 +239,7 @@ export async function handleComponent(
     } else if (step === "mode" && interaction.isStringSelectMenu()) {
       const mode = interaction.values[0] as GameMode;
       state.mode = mode;
-      flowState.set(contextKey, state);
+      services.flow.set(contextKey, state);
 
       const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
         new StringSelectMenuBuilder()
@@ -266,7 +261,7 @@ export async function handleComponent(
       const map = interaction.values[0];
       if (!map) return;
       state.map = map;
-      flowState.set(contextKey, state);
+      services.flow.set(contextKey, state);
 
       const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
@@ -284,7 +279,7 @@ export async function handleComponent(
         components: [row],
       });
     } else if (step === "result" && interaction.isButton()) {
-      const result = parts[3]!;
+      const result = parts[3]! as Result;
       const { squad, mode, map } = state;
 
       if (!mode || !map) {
@@ -305,7 +300,7 @@ export async function handleComponent(
         const teamStats = await services.stats.getTeamStats(interaction.guildId!, squad);
         const teamMentions = squad.map(id => `<@${id}>`).join(", ");
 
-        flowState.delete(contextKey);
+        services.flow.delete(contextKey);
 
         await interaction.update({
           content: `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamStats.wins}W - ${teamStats.losses}L (${teamStats.winRate.toFixed(1)}% WR)`,
