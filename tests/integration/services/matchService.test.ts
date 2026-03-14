@@ -12,6 +12,7 @@ describe("MatchService integration", () => {
       mode: "ESCORT",
       map: "Dorado",
       result: "WIN",
+      players: [{ userId: "user-1" }]
     };
 
     const match = await matchService.addMatch(input);
