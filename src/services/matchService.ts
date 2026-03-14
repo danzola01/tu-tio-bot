@@ -1,5 +1,4 @@
 import type { DbClient } from "../infra/db.js";
-import { GameMode, Result } from "./mapService.js";
 
 export interface AddMatchInput {
   guildId: string;
@@ -7,6 +6,7 @@ export interface AddMatchInput {
   mode: string;
   map: string;
   result: string;
+  playerIds: string[];
 }
 
 export class MatchService {
@@ -20,7 +20,31 @@ export class MatchService {
         mode: input.mode,
         map: input.map,
         result: input.result,
+        groupSize: input.playerIds.length,
+        players: {
+          create: input.playerIds.map(id => ({ userId: id }))
+        }
       },
+    });
+  }
+
+  async getLatestMatch(guildId: string, userId: string) {
+    return await this.db.match.findFirst({
+      where: {
+        guildId,
+        reportedByUserId: userId,
+        deletedAt: null,
+      },
+      orderBy: {
+        playedAt: "desc",
+      },
+    });
+  }
+
+  async softDeleteMatch(id: string) {
+    return await this.db.match.update({
+      where: { id },
+      data: { deletedAt: new Date() },
     });
   }
 }

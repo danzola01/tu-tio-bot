@@ -1,97 +1,32 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
-import { db } from "../infra/db.js";
+import { logger } from "../infra/logger.js";
+import { Services } from "../index.js";
 import { Result } from "../services/mapService.js";
-import pino from "pino";
-
-const logger = pino({
-  transport: {
-    target: "pino-pretty",
-  },
-});
 
 export const data = new SlashCommandBuilder()
   .setName("leaderboard")
   .setDescription("View the server winrate leaderboard");
 
-export async function execute(interaction: ChatInputCommandInteraction) {
+export async function execute(interaction: ChatInputCommandInteraction, services: Services) {
   await interaction.deferReply();
 
   try {
     const MIN_MATCHES = 5;
-
-    // Aggregate stats per user in the database
-    const rows = await db.$queryRaw<Array<{
-      userId: string;
-      wins: bigint | number;
-      losses: bigint | number;
-      total: bigint | number;
-    }>>`
-      SELECT
-        mp."userId" AS "userId",
-        SUM(CASE WHEN m.result = ${Result.WIN} THEN 1 ELSE 0 END) AS "wins",
-        SUM(CASE WHEN m.result = ${Result.LOSS} THEN 1 ELSE 0 END) AS "losses",
-        COUNT(*) AS "total"
-      FROM "MatchPlayer" mp
-      JOIN "Match" m ON m.id = mp."matchId"
-      WHERE
-        m."guildId" = ${interaction.guildId!}
-        AND m."deletedAt" IS NULL
-      GROUP BY mp."userId"
-      HAVING COUNT(*) >= ${MIN_MATCHES}
-    `;
-
-    // Calculate winrates, sort, and take top 10
-    const leaderboard = rows
-      .map(row => {
-        const wins = Number(row.wins);
-        const losses = Number(row.losses);
-        const total = Number(row.total);
-        const winrate = total > 0 ? (wins / total) * 100 : 0;
-        return { userId: row.userId, wins, losses, total, winrate };
-      })
-      .sort((a, b) => {
-        // Sort by winrate descending, then by total matches descending
-        if (b.winrate !== a.winrate) return b.winrate - a.winrate;
-        return b.total - a.total;
-      })
-      .slice(0, 10); // Top 10
+    const leaderboard = await services.stats.getLeaderboard(interaction.guildId!, MIN_MATCHES);
 
     if (leaderboard.length === 0) {
       await interaction.editReply(`No players have reached the minimum of ${MIN_MATCHES} matches yet to be on the leaderboard!`);
       return;
     }
 
-    const leaderBoardWithStreaks = await Promise.all(leaderboard.map(async (u) => {
-      const recentMatches = await db.match.findMany({
-        where: {
-          guildId: interaction.guildId!,
-          deletedAt: null,
-          players: { some: { userId: u.userId } }
-        },
-        orderBy: { playedAt: 'desc' },
-        select: { result: true }
-      });
-      
-      let streakType: string | null = null;
-      let streakCount = 0;
-      
-      for (const m of recentMatches) {
-        if (!streakType) {
-          streakType = m.result;
-          streakCount++;
-        } else if (m.result === streakType) {
-          streakCount++;
-        } else {
-          break;
-        }
-      }
-      
-      return { ...u, streakType, streakCount };
+    const leaderboardWithStreaks = await Promise.all(leaderboard.map(async (u) => {
+      const streak = await services.stats.getUserStreak(interaction.guildId!, u.userId);
+      return { ...u, streak };
     }));
 
     let message = `🏆 **Server Leaderboard** (Min. ${MIN_MATCHES} matches)\n\n`;
     
-    leaderBoardWithStreaks.forEach((user, index) => {
+    leaderboardWithStreaks.forEach((user, index) => {
       let medal = "";
       if (index === 0) medal = "🥇 ";
       else if (index === 1) medal = "🥈 ";
@@ -99,12 +34,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       else medal = `${index + 1}. `;
 
       let streakStr = "";
-      if (user.streakCount >= 2) {
-        if (user.streakType === Result.WIN) streakStr = ` 🔥 ${user.streakCount}W`;
-        if (user.streakType === Result.LOSS) streakStr = ` 🧊 ${user.streakCount}L`;
+      if (user.streak && user.streak.count >= 2) {
+        if (user.streak.type === Result.WIN) streakStr = ` 🔥 ${user.streak.count}W`;
+        else if (user.streak.type === Result.LOSS) streakStr = ` 🧊 ${user.streak.count}L`;
       }
 
-      message += `${medal}<@${user.userId}>: **${user.winrate.toFixed(1)}%** (${user.wins}W - ${user.losses}L)${streakStr}\n`;
+      message += `${medal}<@${user.userId}>: **${user.winRate.toFixed(1)}%** (${user.wins}W - ${user.losses}L)${streakStr}\n`;
     });
 
     await interaction.editReply(message);
