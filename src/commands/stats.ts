@@ -3,6 +3,7 @@ import { db } from "../infra/db.js";
 import { Result, GameMode, MapsByMode } from "../services/mapService.js";
 import { Role, AllHeroes, HeroesByRole } from "../services/heroService.js";
 import pino from "pino";
+import { Prisma } from "@prisma/client";
 
 const logger = pino({
   transport: {
@@ -113,7 +114,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   await interaction.deferReply();
 
   try {
-    const where: any = {
+    const where: Prisma.MatchWhereInput = {
       guildId: interaction.guildId!,
       deletedAt: null,
     };
@@ -121,19 +122,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     if (mode) where.mode = mode;
     if (map) where.map = map;
 
-    const playerFilters: any[] = [];
+    const playerFilters: Prisma.MatchWhereInput[] = [];
 
     // If specific players are requested, find matches where ALL these players were present
     if (playerArray.length > 0) {
       for (const userId of playerArray) {
-        const playerCondition: any = { userId };
+        const playerCondition: Prisma.MatchPlayerWhereInput = { userId };
         if (roleFilter) playerCondition.role = roleFilter;
         if (heroFilter) playerCondition.hero = heroFilter;
         playerFilters.push({ players: { some: playerCondition } });
       }
     } else if (roleFilter || heroFilter) {
       // If no users specified but role/hero is, assume the user running the command wants THEIR stats on that role/hero
-      const playerCondition: any = { userId: interaction.user.id };
+      const playerCondition: Prisma.MatchPlayerWhereInput = { userId: interaction.user.id };
       if (roleFilter) playerCondition.role = roleFilter;
       if (heroFilter) playerCondition.hero = heroFilter;
       playerFilters.push({ players: { some: playerCondition } });
