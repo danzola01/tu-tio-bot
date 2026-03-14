@@ -1,4 +1,4 @@
-import { 
+import type { 
   ChatInputCommandInteraction, 
   AutocompleteInteraction, 
   StringSelectMenuInteraction, 
@@ -7,9 +7,9 @@ import {
   SlashCommandBuilder,
   SlashCommandSubcommandsOnlyBuilder
 } from "discord.js";
-import { MatchService } from "./services/matchService.js";
-import { StatsService } from "./services/statsService.js";
-import { FlowService } from "./services/flowService.js";
+import type { MatchService } from "./services/matchService.js";
+import type { StatsService } from "./services/statsService.js";
+import type { FlowService } from "./services/flowService.js";
 
 export interface Services {
   match: MatchService;

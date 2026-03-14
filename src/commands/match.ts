@@ -197,6 +197,8 @@ export async function handleComponent(
   interaction: AnyInteraction,
   services: Services
 ) {
+  if (interaction.isChatInputCommand()) return;
+
   const parts = interaction.customId.split(":");
   const [prefix, action, step] = parts;
   const contextKey = parts[parts.length - 1]!;

@@ -10,7 +10,7 @@ import * as stats from "./commands/stats.js";
 import * as leaderboard from "./commands/leaderboard.js";
 import * as undo from "./commands/undo.js";
 import * as insights from "./commands/insights.js";
-import { Command, Services } from "./types.js";
+import type { Command, Services } from "./types.js";
 
 const services: Services = {
   match: new MatchService(db),

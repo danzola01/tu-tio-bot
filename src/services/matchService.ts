@@ -35,8 +35,8 @@ export class MatchService {
         players: {
           create: input.players.map(p => ({
             userId: p.userId,
-            role: p.role,
-            hero: p.hero
+            role: p.role ?? null,
+            hero: p.hero ?? null
           }))
         }
       },

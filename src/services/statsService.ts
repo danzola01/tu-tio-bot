@@ -4,11 +4,11 @@ import type { Prisma } from "@prisma/client";
 
 export interface GetStatsInput {
   guildId: string;
-  mode?: GameMode;
-  map?: string;
-  userId?: string;
-  role?: string;
-  hero?: string;
+  mode?: GameMode | undefined;
+  map?: string | undefined;
+  userId?: string | undefined;
+  role?: string | undefined;
+  hero?: string | undefined;
 }
 
 export interface StatsResult {
