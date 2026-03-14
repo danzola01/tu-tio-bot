@@ -126,6 +126,21 @@ export class StatsService {
     });
   }
 
+  async getSessionMatches(guildId: string, userId: string, hours: number = 12) {
+    const sessionStartTime = new Date();
+    sessionStartTime.setHours(sessionStartTime.getHours() - hours);
+
+    return await this.db.match.findMany({
+      where: {
+        guildId,
+        deletedAt: null,
+        playedAt: { gte: sessionStartTime },
+        players: { some: { userId } }
+      },
+      orderBy: { playedAt: 'desc' }
+    });
+  }
+
   async getTeamStats(guildId: string, playerIds: string[]): Promise<StatsResult> {
     const results = await this.db.match.groupBy({
       where: {

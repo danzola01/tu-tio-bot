@@ -9,6 +9,7 @@ import * as stats from "./commands/stats.js";
 import * as leaderboard from "./commands/leaderboard.js";
 import * as undo from "./commands/undo.js";
 import * as insights from "./commands/insights.js";
+import * as session from "./commands/session.js";
 
 export interface Command {
   data: any;
@@ -37,6 +38,7 @@ commands.set(stats.data.name, stats);
 commands.set(leaderboard.data.name, leaderboard);
 commands.set(undo.data.name, undo);
 commands.set(insights.data.name, insights);
+commands.set(session.data.name, session);
 
 client.once(Events.ClientReady, (readyClient) => {
   logger.info(`✅ Ready! Logged in as ${readyClient.user.tag}`);
