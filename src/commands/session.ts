@@ -20,9 +20,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   try {
     const targetUser = interaction.options.getUser("user") || interaction.user;
     
-    // Calculate timestamp for 12 hours ago (typically a "session" is a single evening)
-    const sessionStartTime = new Date();
-    sessionStartTime.setHours(sessionStartTime.getHours() - 12);
+    // Calculate timestamp for 12 hours ago using a millisecond offset to avoid DST issues
+    const twelveHoursMs = 12 * 60 * 60 * 1000;
+    const sessionStartTime = new Date(Date.now() - twelveHoursMs);
 
     const matches = await db.match.findMany({
       where: {
