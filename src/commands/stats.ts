@@ -1,9 +1,11 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction, AttachmentBuilder } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction, AttachmentBuilder, MessageFlags } from "discord.js";
 import { Result, GameMode, MapsByMode } from "../services/mapService.js";
 import { Role, AllHeroes, HeroesByRole } from "../services/heroService.js";
 import { logger } from "../infra/logger.js";
-import { Services } from "../index.js";
-import QuickChart from "quickchart-js";
+import type { Services } from "../index.js";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const QuickChart = require("quickchart-js");
 
 export const data = new SlashCommandBuilder()
   .setName("stats")
@@ -81,11 +83,11 @@ export async function execute(interaction: ChatInputCommandInteraction, services
 
     const filter = {
         guildId: interaction.guildId!,
-        mode,
-        map,
-        role,
-        hero,
-        userId: user?.id
+        mode: mode ?? undefined,
+        map: map ?? undefined,
+        role: role ?? undefined,
+        hero: hero ?? undefined,
+        userId: user?.id ?? undefined
     };
 
     const overall = await services.stats.getStats(filter);
@@ -107,7 +109,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
 
     let attachment: AttachmentBuilder | undefined;
     if (overall.total > 0) {
-      const chart = new (QuickChart as any)();
+      const chart = new QuickChart();
       
       if (graphType === "pie") {
         chart.setConfig({

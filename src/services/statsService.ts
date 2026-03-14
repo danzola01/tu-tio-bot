@@ -3,11 +3,11 @@ import { Result } from "./mapService.js";
 
 export interface GetStatsInput {
   guildId: string;
-  mode?: string | null;
-  map?: string | null;
-  userId?: string | null;
-  role?: string | null;
-  hero?: string | null;
+  mode?: string | undefined;
+  map?: string | undefined;
+  userId?: string | undefined;
+  role?: string | undefined;
+  hero?: string | undefined;
 }
 
 export interface StatsResult {

@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Collection, Events, MessageFlags } from "discord.js";
+import { Client, GatewayIntentBits, Collection, Events } from "discord.js";
 import { config } from "./config.js";
 import { logger } from "./infra/logger.js";
 import { db } from "./infra/db.js";
@@ -57,7 +57,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       logger.error(error);
       const errorMessage = {
         content: "There was an error while executing this command!",
-        flags: [MessageFlags.Ephemeral],
+        ephemeral: true,
       };
       
       if (interaction.replied || interaction.deferred) {

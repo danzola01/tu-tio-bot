@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import { logger } from "../infra/logger.js";
-import { Services } from "../index.js";
+import type { Services } from "../index.js";
 import { Result } from "../services/mapService.js";
 
 export const data = new SlashCommandBuilder()

@@ -14,7 +14,7 @@ import {
 } from "discord.js";
 import { GameMode, MapsByMode, Result, getModeForMap, AllMaps } from "../services/mapService.js";
 import { logger } from "../infra/logger.js";
-import { Services } from "../index.js";
+import type { Services } from "../index.js";
 
 export const data = new SlashCommandBuilder()
   .setName("match")
@@ -81,7 +81,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     if (!mode) {
       await interaction.reply({
         content: `❌ Could not find game mode for map **${map}**. Please ensure you select a valid map from the autocomplete list.`,
-        flags: [MessageFlags.Ephemeral]
+        flags: MessageFlags.Ephemeral
       });
       return;
     }
@@ -130,7 +130,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     await interaction.reply({
       content: "Step 1: Who did you play with? (You are automatically included, select 0 if solo)",
       components: [row],
-      flags: [MessageFlags.Ephemeral],
+      flags: MessageFlags.Ephemeral,
     });
   }
 }
@@ -149,7 +149,7 @@ export async function handleComponent(
   if (interaction.user.id !== userId) {
     await interaction.reply({
       content: "This is not your interaction!",
-      flags: [MessageFlags.Ephemeral],
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
