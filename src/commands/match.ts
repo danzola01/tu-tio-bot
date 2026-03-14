@@ -23,6 +23,10 @@ const logger = pino({
   },
 });
 
+const isValidHeroName = (heroName: string | null): heroName is string => {
+  return !!heroName && AllHeroes.includes(heroName);
+};
+
 export const data = new SlashCommandBuilder()
   .setName("match")
   .setDescription("Manage Overwatch matches")
@@ -131,7 +135,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     const map = interaction.options.getString("map", true);
     const result = interaction.options.getString("result", true);
     const role = interaction.options.getString("role");
-    const hero = interaction.options.getString("hero");
+    const rawHero = interaction.options.getString("hero");
+    const hero = isValidHeroName(rawHero) ? rawHero : null;
 
     const inferredMode = getModeForMap(map);
 
@@ -152,7 +157,8 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     const addSquadmate = (num: number) => {
       const p = interaction.options.getUser(`player${num}`);
-      const h = interaction.options.getString(`player${num}_hero`);
+      const rawHero = interaction.options.getString(`player${num}_hero`);
+      const h = isValidHeroName(rawHero) ? rawHero : null;
       if (p && !p.bot) {
         playersMap.set(p.id, { role: null, hero: h });
       }
