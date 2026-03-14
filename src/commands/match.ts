@@ -13,6 +13,7 @@ import {
   MessageFlags
 } from "discord.js";
 import { GameMode, MapsByMode, Result, getModeForMap, AllMaps } from "../services/mapService.js";
+import { Role, AllHeroes, HeroesByRole } from "../services/heroService.js";
 import { db } from "../infra/db.js";
 import pino from "pino";
 
@@ -46,10 +47,30 @@ export const data = new SlashCommandBuilder()
             { name: "Loss", value: Result.LOSS }
           )
       )
+      .addStringOption((option) =>
+        option
+          .setName("role")
+          .setDescription("The role you played")
+          .setRequired(false)
+          .addChoices(
+            ...Object.values(Role).map((r) => ({ name: r, value: r }))
+          )
+      )
+      .addStringOption((option) =>
+        option
+          .setName("hero")
+          .setDescription("The hero you played")
+          .setRequired(false)
+          .setAutocomplete(true)
+      )
       .addUserOption(option => option.setName("player2").setDescription("Squadmate 2").setRequired(false))
+      .addStringOption(option => option.setName("player2_hero").setDescription("Hero played by Squadmate 2").setRequired(false).setAutocomplete(true))
       .addUserOption(option => option.setName("player3").setDescription("Squadmate 3").setRequired(false))
+      .addStringOption(option => option.setName("player3_hero").setDescription("Hero played by Squadmate 3").setRequired(false).setAutocomplete(true))
       .addUserOption(option => option.setName("player4").setDescription("Squadmate 4").setRequired(false))
+      .addStringOption(option => option.setName("player4_hero").setDescription("Hero played by Squadmate 4").setRequired(false).setAutocomplete(true))
       .addUserOption(option => option.setName("player5").setDescription("Squadmate 5").setRequired(false))
+      .addStringOption(option => option.setName("player5_hero").setDescription("Hero played by Squadmate 5").setRequired(false).setAutocomplete(true))
   )
   .addSubcommand((subcommand) =>
     subcommand
@@ -61,8 +82,6 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
   const focusedOption = interaction.options.getFocused(true);
 
   if (focusedOption.name === "map") {
-    // Determine context based on subcommand. If the user is in /match add, 'mode' won't exist.
-    // However, discord.js will try to fetch 'mode' and return null if not present.
     const mode = interaction.options.getString("mode") as GameMode | null;
     let choices: string[] = [];
 
@@ -81,10 +100,28 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
     await interaction.respond(
       filtered.map((choice) => ({ name: choice, value: choice }))
     );
+  } else if (focusedOption.name.endsWith("hero")) {
+    const role = interaction.options.getString("role") as Role | null;
+    let choices: string[] = [];
+
+    if (focusedOption.name === "hero" && role && HeroesByRole[role]) {
+      choices = HeroesByRole[role];
+    } else {
+      choices = AllHeroes;
+    }
+
+    const filtered = choices
+      .filter((choice) =>
+        choice.toLowerCase().includes(focusedOption.value.toLowerCase())
+      )
+      .slice(0, 25);
+
+    await interaction.respond(
+      filtered.map((choice) => ({ name: choice, value: choice }))
+    );
   }
 }
 
-// In-memory cache for the interactive flow
 const flowState = new Map<string, { squad: string[], mode?: string, map?: string }>();
 
 export async function execute(interaction: ChatInputCommandInteraction) {
@@ -93,7 +130,9 @@ export async function execute(interaction: ChatInputCommandInteraction) {
   if (subcommand === "add") {
     const map = interaction.options.getString("map", true);
     const result = interaction.options.getString("result", true);
-    
+    const role = interaction.options.getString("role");
+    const hero = interaction.options.getString("hero");
+
     const inferredMode = getModeForMap(map);
 
     if (!inferredMode) {
@@ -103,21 +142,32 @@ export async function execute(interaction: ChatInputCommandInteraction) {
       });
       return;
     }
-    
+
     const mode = inferredMode;
 
-    const players = new Set([interaction.user.id]);
-    const p2 = interaction.options.getUser("player2");
-    const p3 = interaction.options.getUser("player3");
-    const p4 = interaction.options.getUser("player4");
-    const p5 = interaction.options.getUser("player5");
+    const playersMap = new Map<string, { role: string | null, hero: string | null }>();
+    
+    // Add reporter
+    playersMap.set(interaction.user.id, { role, hero });
 
-    if (p2 && !p2.bot) players.add(p2.id);
-    if (p3 && !p3.bot) players.add(p3.id);
-    if (p4 && !p4.bot) players.add(p4.id);
-    if (p5 && !p5.bot) players.add(p5.id);
+    const addSquadmate = (num: number) => {
+      const p = interaction.options.getUser(`player${num}`);
+      const h = interaction.options.getString(`player${num}_hero`);
+      if (p && !p.bot) {
+        playersMap.set(p.id, { role: null, hero: h });
+      }
+    };
 
-    const playerArray = Array.from(players);
+    addSquadmate(2);
+    addSquadmate(3);
+    addSquadmate(4);
+    addSquadmate(5);
+
+    const playerArray = Array.from(playersMap.entries()).map(([userId, data]) => ({
+      userId,
+      role: data.role,
+      hero: data.hero
+    }));
 
     await interaction.deferReply();
 
@@ -131,20 +181,19 @@ export async function execute(interaction: ChatInputCommandInteraction) {
           result,
           groupSize: playerArray.length,
           players: {
-            create: playerArray.map(id => ({ userId: id }))
+            create: playerArray
           }
         },
       });
 
-      // Calculate stats for this specific team composition
       const teamResultGroups = await db.match.groupBy({
         where: {
           guildId: interaction.guildId!,
           deletedAt: null,
           groupSize: playerArray.length,
-          AND: playerArray.map(userId => ({
+          AND: playerArray.map(p => ({
             players: {
-              some: { userId }
+              some: { userId: p.userId }
             }
           }))
         },
@@ -167,7 +216,7 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
       const teamTotal = teamWins + teamLosses;
       const teamWinrate = teamTotal > 0 ? ((teamWins / teamTotal) * 100).toFixed(1) : "0.0";
-      const teamMentions = playerArray.map(id => `<@${id}>`).join(", ");
+      const teamMentions = playerArray.map(p => `<@${p.userId}>`).join(", ");
 
       await interaction.editReply(
         `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamWins}W - ${teamLosses}L (${teamWinrate}% WR)`
@@ -304,7 +353,6 @@ export async function handleComponent(
           },
         });
 
-        // Calculate stats for this specific team composition
         const teamStats = await db.match.groupBy({
           where: {
             guildId: interaction.guildId!,
