@@ -49,16 +49,40 @@ export async function execute(interaction: ChatInputCommandInteraction) {
 
     let wins = 0;
     let losses = 0;
-    let matchHistory = "";
 
+    // First pass: compute overall stats for the full session window
     for (const match of matches) {
       if (match.result === Result.WIN) {
         wins++;
-        matchHistory += `🟢 **WIN** on ${match.map} (${match.mode})\n`;
       } else if (match.result === Result.LOSS) {
         losses++;
-        matchHistory += `🔴 **LOSS** on ${match.map} (${match.mode})\n`;
       }
+    }
+
+    // Second pass: build match history with a character budget to avoid Discord's 2000-char limit
+    const DISCORD_MESSAGE_LIMIT = 2000;
+    const SUMMARY_OVERHEAD = 400; // conservative estimate for non-history text
+    const MAX_HISTORY_LENGTH = DISCORD_MESSAGE_LIMIT - SUMMARY_OVERHEAD;
+
+    let matchHistory = "";
+    let displayedMatches = 0;
+
+    for (const match of matches) {
+      let line = "";
+      if (match.result === Result.WIN) {
+        line = `🟢 **WIN** on ${match.map} (${match.mode})\n`;
+      } else if (match.result === Result.LOSS) {
+        line = `🔴 **LOSS** on ${match.map} (${match.mode})\n`;
+      } else {
+        continue;
+      }
+
+      if (matchHistory.length + line.length > MAX_HISTORY_LENGTH) {
+        break;
+      }
+
+      matchHistory += line;
+      displayedMatches++;
     }
 
     const total = wins + losses;
@@ -68,6 +92,12 @@ export async function execute(interaction: ChatInputCommandInteraction) {
     let summaryEmoji = "⚖️";
     if (netResult > 0) summaryEmoji = "📈";
     if (netResult < 0) summaryEmoji = "📉";
+
+    const totalResultMatches = wins + losses;
+    const remainingMatches = totalResultMatches - displayedMatches;
+    if (remainingMatches > 0) {
+      matchHistory += `…and ${remainingMatches} more match${remainingMatches === 1 ? "" : "es"}.\n`;
+    }
 
     let message = `🌙 **Tonight's Session for <@${targetUser.id}>**\n\n`;
     message += `**Summary:** ${wins}W - ${losses}L (${winrate}% WR) ${summaryEmoji}\n`;
