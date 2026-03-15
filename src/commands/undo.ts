@@ -1,6 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
 import { logger } from "../infra/logger.js";
-import type { Services } from "../index.js";
+import type { Services } from "../types.js";
 
 export const data = new SlashCommandBuilder()
   .setName("undo")

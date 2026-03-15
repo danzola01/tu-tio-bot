@@ -1,4 +1,5 @@
 import type { DbClient } from "../infra/db.js";
+import { isMapValidForMode, GameMode, Result } from "./mapService.js";
 
 export interface AddMatchPlayerInput {
   userId: string;
@@ -9,9 +10,9 @@ export interface AddMatchPlayerInput {
 export interface AddMatchInput {
   guildId: string;
   reportedByUserId: string;
-  mode: string;
+  mode: GameMode;
   map: string;
-  result: string;
+  result: Result | string;
   players: AddMatchPlayerInput[];
 }
 
@@ -19,6 +20,10 @@ export class MatchService {
   constructor(private db: DbClient) {}
 
   async addMatch(input: AddMatchInput) {
+    if (!isMapValidForMode(input.mode, input.map)) {
+      throw new Error(`Invalid map "${input.map}" for mode "${input.mode}"`);
+    }
+
     return await this.db.match.create({
       data: {
         guildId: input.guildId,
@@ -30,8 +35,8 @@ export class MatchService {
         players: {
           create: input.players.map(p => ({
             userId: p.userId,
-            role: p.role,
-            hero: p.hero
+            role: p.role ?? null,
+            hero: p.hero ?? null
           }))
         }
       },

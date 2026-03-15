@@ -1,9 +1,10 @@
 import type { DbClient } from "../infra/db.js";
-import { Result } from "./mapService.js";
+import { Result, GameMode } from "./mapService.js";
+import type { Prisma } from "@prisma/client";
 
 export interface GetStatsInput {
   guildId: string;
-  mode?: string | undefined;
+  mode?: GameMode | undefined;
   map?: string | undefined;
   userId?: string | undefined;
   role?: string | undefined;
@@ -63,8 +64,8 @@ export function calculateWinRate(wins: number, losses: number): number {
 export class StatsService {
   constructor(private db: DbClient) {}
 
-  private getWhereClause(input: GetStatsInput) {
-    const where: any = {
+  private getWhereClause(input: GetStatsInput): Prisma.MatchWhereInput {
+    const where: Prisma.MatchWhereInput = {
       guildId: input.guildId,
       deletedAt: null,
     };
@@ -72,9 +73,9 @@ export class StatsService {
     if (input.mode) where.mode = input.mode;
     if (input.map) where.map = input.map;
 
-    const playerFilters: any[] = [];
+    const playerFilters: Prisma.MatchWhereInput[] = [];
     if (input.userId || input.role || input.hero) {
-      const playerCond: any = {};
+      const playerCond: Prisma.MatchPlayerWhereInput = {};
       if (input.userId) playerCond.userId = input.userId;
       if (input.role) playerCond.role = input.role;
       if (input.hero) playerCond.hero = input.hero;

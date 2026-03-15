@@ -2,7 +2,8 @@ import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteracti
 import { Result, GameMode, MapsByMode } from "../services/mapService.js";
 import { Role, AllHeroes, HeroesByRole } from "../services/heroService.js";
 import { logger } from "../infra/logger.js";
-import type { Services } from "../index.js";
+import type { GetStatsInput } from "../services/statsService.js";
+import type { Services } from "../types.js";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const QuickChart = require("quickchart-js");
@@ -74,14 +75,14 @@ export async function execute(interaction: ChatInputCommandInteraction, services
   await interaction.deferReply();
 
   try {
-    const mode = interaction.options.getString("mode");
+    const mode = interaction.options.getString("mode") as GameMode | null;
     const map = interaction.options.getString("map");
     const role = interaction.options.getString("role");
     const hero = interaction.options.getString("hero");
     const user = interaction.options.getUser("user");
     const graphType = interaction.options.getString("graph") || "pie";
 
-    const filter = {
+    const filter: GetStatsInput = {
         guildId: interaction.guildId!,
         mode: mode ?? undefined,
         map: map ?? undefined,
