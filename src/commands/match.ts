@@ -39,7 +39,8 @@ export const data = new SlashCommandBuilder()
           .setRequired(true)
           .addChoices(
             { name: "Win", value: Result.WIN },
-            { name: "Loss", value: Result.LOSS }
+            { name: "Loss", value: Result.LOSS },
+            { name: "Draw", value: Result.DRAW},
           )
       )
       .addStringOption((option) =>
@@ -167,7 +168,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
       const teamMentions = userIds.map(id => `<@${id}>`).join(", ");
 
       await interaction.editReply(
-        `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamStats.wins}W - ${teamStats.losses}L (${teamStats.winRate.toFixed(1)}% WR)`
+        `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamStats.wins}W - ${teamStats.losses}L - ${teamStats.draws}D (${teamStats.winRate.toFixed(1)}% WR)`
       );
     } catch (error) {
       logger.error(error, "Failed to save match");
@@ -273,7 +274,11 @@ export async function handleComponent(
         new ButtonBuilder()
           .setCustomId(`match:start:result:LOSS:${contextKey}`)
           .setLabel("Loss")
-          .setStyle(ButtonStyle.Danger)
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId(`match:start:result:DRAW:${contextKey}`)
+          .setLabel("Draw")
+          .setStyle(ButtonStyle.Secondary),
       );
 
       await interaction.update({
@@ -305,7 +310,7 @@ export async function handleComponent(
         services.flow.delete(contextKey);
 
         await interaction.update({
-          content: `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamStats.wins}W - ${teamStats.losses}L (${teamStats.winRate.toFixed(1)}% WR)`,
+          content: `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamStats.wins}W - ${teamStats.losses}L - ${teamStats.draws}D (${teamStats.winRate.toFixed(1)}% WR)`,
           components: [],
         });
       } catch (error) {

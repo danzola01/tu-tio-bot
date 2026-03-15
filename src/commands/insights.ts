@@ -34,7 +34,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     let bestTeammate = qualifyingTeammates[0];
 
     let message = `🧠 **Personalized Insights for <@${targetUser.id}>**\n\n`;
-    message += `**Overall Winrate:** ${overall.wins}W - ${overall.losses}L (${overall.winRate.toFixed(1)}%)\n\n`;
+    message += `**Overall Winrate:** ${overall.wins}W - ${overall.losses}L - ${overall.draws}D (${overall.winRate.toFixed(1)}%)\n\n`;
 
     if (bestMap) {
       message += `🗺️ **Best Map:** **${bestMap.map}** with a ${bestMap.winRate.toFixed(1)}% WR. You dominate here!\n`;

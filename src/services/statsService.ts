@@ -14,6 +14,7 @@ export interface GetStatsInput {
 export interface StatsResult {
   wins: number;
   losses: number;
+  draws: number;
   total: number;
   winRate: number;
 }
@@ -22,6 +23,7 @@ export interface MapStat {
   map: string;
   wins: number;
   losses: number;
+  draws: number;
   total: number;
   winRate: number;
 }
@@ -30,6 +32,7 @@ export interface TeammateStat {
   userId: string;
   wins: number;
   losses: number;
+  draws: number;
   total: number;
   winRate: number;
 }
@@ -38,6 +41,7 @@ export interface LeaderboardEntry {
   userId: string;
   wins: number;
   losses: number;
+  draws: number;
   total: number;
   winRate: number;
 }
@@ -46,6 +50,7 @@ export interface TeamBreakdownEntry {
   userIds: string[];
   wins: number;
   losses: number;
+  draws: number;
   total: number;
   winRate: number;
 }
@@ -55,8 +60,8 @@ export interface UserStreak {
   count: number;
 }
 
-export function calculateWinRate(wins: number, losses: number): number {
-  const total = wins + losses;
+export function calculateWinRate(wins: number, losses: number, draws: number): number {
+  const total = wins + losses + draws;
   if (total === 0) return 0;
   return (wins / total) * 100;
 }
@@ -101,18 +106,21 @@ export class StatsService {
 
     let wins = 0;
     let losses = 0;
+    let draws = 0;
 
     for (const group of results) {
       if (group.result === Result.WIN) wins = group._count.result;
       if (group.result === Result.LOSS) losses = group._count.result;
+      if (group.result === Result.DRAW) draws = group._count.result;
     }
 
-    const total = wins + losses;
-    const winRate = calculateWinRate(wins, losses);
+    const total = wins + losses + draws;
+    const winRate = calculateWinRate(wins, losses, draws);
 
     return {
       wins,
       losses,
+      draws,
       total,
       winRate,
     };
@@ -162,16 +170,18 @@ export class StatsService {
 
     let wins = 0;
     let losses = 0;
+    let draws = 0;
 
     for (const group of results) {
       if (group.result === Result.WIN) wins = group._count.result;
       if (group.result === Result.LOSS) losses = group._count.result;
+      if (group.result === Result.DRAW) draws = group._count.result;
     }
 
-    const total = wins + losses;
-    const winRate = calculateWinRate(wins, losses);
+    const total = wins + losses + draws;
+    const winRate = calculateWinRate(wins, losses, draws);
 
-    return { wins, losses, total, winRate };
+    return { wins, losses, draws, total, winRate };
   }
 
   async getMapStats(guildId: string, userId: string): Promise<MapStat[]> {
@@ -187,11 +197,12 @@ export class StatsService {
       }
     });
 
-    const mapMap = new Map<string, { wins: number, losses: number }>();
+    const mapMap = new Map<string, { wins: number, losses: number, draws: number }>();
     for (const m of matches) {
-      const stats = mapMap.get(m.map) || { wins: 0, losses: 0 };
+      const stats = mapMap.get(m.map) || { wins: 0, losses: 0, draws: 0 };
       if (m.result === Result.WIN) stats.wins++;
       else if (m.result === Result.LOSS) stats.losses++;
+      else if (m.result === Result.DRAW) stats.draws++;
       mapMap.set(m.map, stats);
     }
 
@@ -199,8 +210,9 @@ export class StatsService {
       map,
       wins: s.wins,
       losses: s.losses,
-      total: s.wins + s.losses,
-      winRate: calculateWinRate(s.wins, s.losses)
+      draws: s.draws,
+      total: s.wins + s.losses + s.draws,
+      winRate: calculateWinRate(s.wins, s.losses, s.draws)
     }));
   }
 
@@ -216,13 +228,14 @@ export class StatsService {
       }
     });
 
-    const teammateMap = new Map<string, { wins: number, losses: number }>();
+    const teammateMap = new Map<string, { wins: number, losses: number, draws: number }>();
     for (const m of matches) {
       for (const p of m.players) {
         if (p.userId === userId) continue;
-        const stats = teammateMap.get(p.userId) || { wins: 0, losses: 0 };
+        const stats = teammateMap.get(p.userId) || { wins: 0, losses: 0, draws: 0 };
         if (m.result === Result.WIN) stats.wins++;
         else if (m.result === Result.LOSS) stats.losses++;
+        else if (m.result === Result.DRAW) stats.draws++;
         teammateMap.set(p.userId, stats);
       }
     }
@@ -231,8 +244,9 @@ export class StatsService {
       userId: id,
       wins: s.wins,
       losses: s.losses,
-      total: s.wins + s.losses,
-      winRate: calculateWinRate(s.wins, s.losses)
+      draws: s.draws,
+      total: s.wins + s.losses + s.draws,
+      winRate: calculateWinRate(s.wins, s.losses, s.draws)
     }));
   }
 
@@ -241,12 +255,14 @@ export class StatsService {
       userId: string;
       wins: bigint | number;
       losses: bigint | number;
+      draws: bigint | number;
       total: bigint | number;
     }>>`
       SELECT
         mp."userId" AS "userId",
         SUM(CASE WHEN m.result = ${Result.WIN} THEN 1 ELSE 0 END) AS "wins",
         SUM(CASE WHEN m.result = ${Result.LOSS} THEN 1 ELSE 0 END) AS "losses",
+        SUM(CASE WHEN m.result = ${Result.DRAW} THEN 1 ELSE 0 END) AS "draws",
         COUNT(*) AS "total"
       FROM "MatchPlayer" mp
       JOIN "Match" m ON m.id = mp."matchId"
@@ -261,13 +277,15 @@ export class StatsService {
       .map(row => {
         const wins = Number(row.wins);
         const losses = Number(row.losses);
+        const draws = Number(row.draws);
         const total = Number(row.total);
         return {
           userId: row.userId,
           wins,
           losses,
+          draws,
           total,
-          winRate: calculateWinRate(wins, losses)
+          winRate: calculateWinRate(wins, losses, draws)
         };
       })
       .sort((a, b) => {
@@ -284,13 +302,14 @@ export class StatsService {
       include: { players: true }
     });
 
-    const teamMap = new Map<string, { wins: number, losses: number, userIds: string[] }>();
+    const teamMap = new Map<string, { wins: number, losses: number, draws: number, userIds: string[] }>();
     for (const m of matches) {
       const ids = m.players.map(p => p.userId).sort();
       const key = ids.join(",");
-      const stats = teamMap.get(key) || { wins: 0, losses: 0, userIds: ids };
+      const stats = teamMap.get(key) || { wins: 0, losses: 0, draws: 0, userIds: ids };
       if (m.result === Result.WIN) stats.wins++;
       else if (m.result === Result.LOSS) stats.losses++;
+      else if (m.result === Result.DRAW) stats.draws++
       teamMap.set(key, stats);
     }
 
@@ -298,10 +317,12 @@ export class StatsService {
       userIds: s.userIds,
       wins: s.wins,
       losses: s.losses,
-      total: s.wins + s.losses,
-      winRate: calculateWinRate(s.wins, s.losses)
+      draws: s.draws,
+      total: s.wins + s.losses + s.draws,
+      winRate: calculateWinRate(s.wins, s.losses, s.draws)
     })).sort((a, b) => b.total - a.total);
   }
+
 
   async getUserStreak(guildId: string, userId: string): Promise<UserStreak | null> {
     const matches = await this.db.match.findMany({

@@ -105,4 +105,42 @@ describe("StatsService integration", () => {
     expect(route66Stats.total).toBe(1);
     expect(route66Stats.losses).toBe(1);
   });
+
+  it("handles match draws correctly", async () => {
+    const guildId = "guild-stats-4";
+    
+    // Add 1 win, 1 loss, 1 draw
+    await matchService.addMatch({
+      guildId,
+      reportedByUserId: "user-1",
+      mode: "ESCORT",
+      map: "Dorado",
+      result: "WIN",
+      players: [{ userId: "user-1" }]
+    });
+    await matchService.addMatch({
+      guildId,
+      reportedByUserId: "user-1",
+      mode: "ESCORT",
+      map: "Dorado",
+      result: "LOSS",
+      players: [{ userId: "user-1" }]
+    });
+    await matchService.addMatch({
+      guildId,
+      reportedByUserId: "user-1",
+      mode: "ESCORT",
+      map: "Dorado",
+      result: "DRAW",
+      players: [{ userId: "user-1" }]
+    });
+
+    const stats = await statsService.getStats({ guildId });
+
+    expect(stats.total).toBe(3);
+    expect(stats.wins).toBe(1);
+    expect(stats.losses).toBe(1);
+    expect(stats.draws).toBe(1);
+    expect(stats.winRate).toBeCloseTo(33.3333, 3);
+  });
 });

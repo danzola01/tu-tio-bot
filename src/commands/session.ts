@@ -22,6 +22,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
 
     let wins = 0;
     let losses = 0;
+    let draws = 0;
 
     // First pass: compute overall stats for the full session window
     for (const match of matches) {
@@ -29,6 +30,8 @@ export async function execute(interaction: ChatInputCommandInteraction, services
         wins++;
       } else if (match.result === Result.LOSS) {
         losses++;
+      } else if (match.result === Result.DRAW) {
+        draws++
       }
     }
 
@@ -46,6 +49,8 @@ export async function execute(interaction: ChatInputCommandInteraction, services
         line = `🟢 **WIN** on ${match.map} (${match.mode})\n`;
       } else if (match.result === Result.LOSS) {
         line = `🔴 **LOSS** on ${match.map} (${match.mode})\n`;
+      } else if (match.result === Result.DRAW) {
+        line = `🟡 **DRAW** on ${match.map} (${match.mode})\n`
       } else {
         continue;
       }
@@ -58,9 +63,10 @@ export async function execute(interaction: ChatInputCommandInteraction, services
       displayedMatches++;
     }
 
-    const total = wins + losses;
+    const total = wins + losses + draws;
     const winrate = total > 0 ? ((wins / total) * 100).toFixed(1) : "0.0";
 
+    // Count draws as neutral, exclude from net result calculation
     const netResult = wins - losses;
     let summaryEmoji = "⚖️";
     if (netResult > 0) summaryEmoji = "📈";
@@ -72,7 +78,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     }
 
     let message = `🌙 **Tonight's Session for <@${targetUser.id}>**\n\n`;
-    message += `**Summary:** ${wins}W - ${losses}L (${winrate}% WR) ${summaryEmoji}\n`;
+    message += `**Summary:** ${wins}W - ${losses}L - ${draws}D (${winrate}% WR) ${summaryEmoji}\n`;
     message += `**Net Games:** ${netResult > 0 ? '+' : ''}${netResult}\n\n`;
     message += `**Match History (Last 12 Hours):**\n${matchHistory}`;
 

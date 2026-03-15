@@ -23,6 +23,7 @@ export const AllMaps = Object.values(MapsByMode).flat();
 export const Result = {
   WIN: "WIN",
   LOSS: "LOSS",
+  DRAW: "DRAW",
 } as const;
 
 export type Result = keyof typeof Result;

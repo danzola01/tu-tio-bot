@@ -98,13 +98,13 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     if (user) title = `📊 **Stats for <@${user.id}>**`;
     
     let message = `${title}${mode ? ` for ${mode}` : ""}${map ? ` on ${map}` : ""}${role ? ` as ${role}` : ""}${hero ? ` playing ${hero}` : ""}:\n\n`;
-    message += `**Overall**: ${overall.wins}W - ${overall.losses}L (${overall.winRate.toFixed(1)}% WR)\n\n`;
+    message += `**Overall**: ${overall.wins}W - ${overall.losses}L - ${overall.draws}D (${overall.winRate.toFixed(1)}% WR)\n\n`;
 
     if (overall.total > 0 && teamBreakdown.length > 0) {
       message += `**Top Teams:**\n`;
       teamBreakdown.slice(0, 5).forEach(team => {
         const teamMentions = team.userIds.map(id => `<@${id}>`).join(", ");
-        message += `- ${teamMentions}: ${team.wins}W - ${team.losses}L (${team.winRate.toFixed(1)}% WR)\n`;
+        message += `- ${teamMentions}: ${team.wins}W - ${team.losses}L - ${team.draws}D (${team.winRate.toFixed(1)}% WR)\n`;
       });
     }
 
@@ -116,10 +116,10 @@ export async function execute(interaction: ChatInputCommandInteraction, services
         chart.setConfig({
           type: "outlabeledPie",
           data: {
-            labels: ["Wins", "Losses"],
+            labels: ["Wins", "Losses", "Draws"],
             datasets: [{
-              data: [overall.wins, overall.losses],
-              backgroundColor: ["#4caf50", "#f44336"]
+              data: [overall.wins, overall.losses, overall.draws],
+              backgroundColor: ["#4caf50", "#f44336", "#9e9e9e"]
             }]
           },
           options: {
