@@ -39,7 +39,8 @@ export async function execute(interaction: ChatInputCommandInteraction, services
         else if (user.streak.type === Result.LOSS) streakStr = ` 🧊 ${user.streak.count}L`;
       }
 
-      message += `${medal}<@${user.userId}>: **${user.winRate.toFixed(1)}%** (${user.wins}W - ${user.losses}L - ${user.draws}D)${streakStr}\n`;
+      const drawsStr = user.draws > 0 ? ` - ${user.draws}D` : "";
+      message += `${medal}<@${user.userId}>: **${user.winRate.toFixed(1)}%** (${user.wins}W - ${user.losses}L${drawsStr})${streakStr}\n`;
     });
 
     await interaction.editReply(message);

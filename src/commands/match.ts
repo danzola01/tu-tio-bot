@@ -167,8 +167,9 @@ export async function execute(interaction: ChatInputCommandInteraction, services
       const teamStats = await services.stats.getTeamStats(interaction.guildId!, userIds);
       const teamMentions = userIds.map(id => `<@${id}>`).join(", ");
 
+      const teamDrawsStr = teamStats.draws > 0 ? ` - ${teamStats.draws}D` : "";
       await interaction.editReply(
-        `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamStats.wins}W - ${teamStats.losses}L - ${teamStats.draws}D (${teamStats.winRate.toFixed(1)}% WR)`
+        `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamStats.wins}W - ${teamStats.losses}L${teamDrawsStr} (${teamStats.winRate.toFixed(1)}% WR)`
       );
     } catch (error) {
       logger.error(error, "Failed to save match");
@@ -309,8 +310,9 @@ export async function handleComponent(
 
         services.flow.delete(contextKey);
 
+        const teamDrawsStr = teamStats.draws > 0 ? ` - ${teamStats.draws}D` : "";
         await interaction.update({
-          content: `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamStats.wins}W - ${teamStats.losses}L - ${teamStats.draws}D (${teamStats.winRate.toFixed(1)}% WR)`,
+          content: `✅ Recorded **${result}** on **${map}** (${mode}). Match ID: \`${match.id}\`\n\n**Team Stats** (${teamMentions}):\n${teamStats.wins}W - ${teamStats.losses}L${teamDrawsStr} (${teamStats.winRate.toFixed(1)}% WR)`,
           components: [],
         });
       } catch (error) {

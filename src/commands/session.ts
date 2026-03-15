@@ -78,7 +78,8 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     }
 
     let message = `🌙 **Tonight's Session for <@${targetUser.id}>**\n\n`;
-    message += `**Summary:** ${wins}W - ${losses}L - ${draws}D (${winrate}% WR) ${summaryEmoji}\n`;
+    const drawsStr = draws > 0 ? ` - ${draws}D` : "";
+    message += `**Summary:** ${wins}W - ${losses}L${drawsStr} (${winrate}% WR) ${summaryEmoji}\n`;
     message += `**Net Games:** ${netResult > 0 ? '+' : ''}${netResult}\n\n`;
     message += `**Match History (Last 12 Hours):**\n${matchHistory}`;
 

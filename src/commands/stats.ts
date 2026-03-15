@@ -98,13 +98,15 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     if (user) title = `📊 **Stats for <@${user.id}>**`;
     
     let message = `${title}${mode ? ` for ${mode}` : ""}${map ? ` on ${map}` : ""}${role ? ` as ${role}` : ""}${hero ? ` playing ${hero}` : ""}:\n\n`;
-    message += `**Overall**: ${overall.wins}W - ${overall.losses}L - ${overall.draws}D (${overall.winRate.toFixed(1)}% WR)\n\n`;
+    const overallDrawsStr = overall.draws > 0 ? ` - ${overall.draws}D` : "";
+    message += `**Overall**: ${overall.wins}W - ${overall.losses}L${overallDrawsStr} (${overall.winRate.toFixed(1)}% WR)\n\n`;
 
     if (overall.total > 0 && teamBreakdown.length > 0) {
       message += `**Top Teams:**\n`;
       teamBreakdown.slice(0, 5).forEach(team => {
         const teamMentions = team.userIds.map(id => `<@${id}>`).join(", ");
-        message += `- ${teamMentions}: ${team.wins}W - ${team.losses}L - ${team.draws}D (${team.winRate.toFixed(1)}% WR)\n`;
+        const teamDrawsStr = team.draws > 0 ? ` - ${team.draws}D` : "";
+        message += `- ${teamMentions}: ${team.wins}W - ${team.losses}L${teamDrawsStr} (${team.winRate.toFixed(1)}% WR)\n`;
       });
     }
 
@@ -113,13 +115,23 @@ export async function execute(interaction: ChatInputCommandInteraction, services
       const chart = new QuickChart();
       
       if (graphType === "pie") {
+        const labels = ["Wins", "Losses"];
+        const data = [overall.wins, overall.losses];
+        const colors = ["#4caf50", "#f44336"];
+
+        if (overall.draws > 0) {
+          labels.push("Draws");
+          data.push(overall.draws);
+          colors.push("#9e9e9e");
+        }
+
         chart.setConfig({
           type: "outlabeledPie",
           data: {
-            labels: ["Wins", "Losses", "Draws"],
+            labels,
             datasets: [{
-              data: [overall.wins, overall.losses, overall.draws],
-              backgroundColor: ["#4caf50", "#f44336", "#9e9e9e"]
+              data,
+              backgroundColor: colors
             }]
           },
           options: {
