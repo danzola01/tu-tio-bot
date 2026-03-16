@@ -40,7 +40,7 @@ export const data = new SlashCommandBuilder()
           .addChoices(
             { name: "Win", value: Result.WIN },
             { name: "Loss", value: Result.LOSS },
-            { name: "Draw", value: Result.DRAW},
+            { name: "Draw", value: Result.DRAW },
           )
       )
       .addStringOption((option) =>
