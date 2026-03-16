@@ -4,7 +4,6 @@ import { logger } from "./infra/logger.js";
 import { db } from "./infra/db.js";
 import { MatchService } from "./services/matchService.js";
 import { StatsService } from "./services/statsService.js";
-import { FlowService } from "./services/flowService.js";
 import * as match from "./commands/match.js";
 import * as stats from "./commands/stats.js";
 import * as leaderboard from "./commands/leaderboard.js";
@@ -16,7 +15,6 @@ import type { Command, Services } from "./types.js";
 const services: Services = {
   match: new MatchService(db),
   stats: new StatsService(db),
-  flow: new FlowService(),
 };
 
 const client = new Client({
@@ -65,17 +63,6 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (command?.autocomplete) {
       try {
         await command.autocomplete(interaction);
-      } catch (error) {
-        logger.error(error);
-      }
-    }
-  } else if (interaction.isStringSelectMenu() || interaction.isUserSelectMenu() || interaction.isButton()) {
-    const [commandName] = interaction.customId.split(":");
-    const command = commands.get(commandName!);
-
-    if (command?.handleComponent) {
-      try {
-        await command.handleComponent(interaction, services);
       } catch (error) {
         logger.error(error);
       }

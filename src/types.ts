@@ -9,12 +9,10 @@ import type {
 } from "discord.js";
 import type { MatchService } from "./services/matchService.js";
 import type { StatsService } from "./services/statsService.js";
-import type { FlowService } from "./services/flowService.js";
 
 export interface Services {
   match: MatchService;
   stats: StatsService;
-  flow: FlowService;
 }
 
 export type AnyInteraction = 
