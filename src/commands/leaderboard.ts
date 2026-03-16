@@ -37,6 +37,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
       if (user.streak && user.streak.count >= 2) {
         if (user.streak.type === Result.WIN) streakStr = ` 🔥 ${user.streak.count}W`;
         else if (user.streak.type === Result.LOSS) streakStr = ` 🧊 ${user.streak.count}L`;
+        else if (user.streak.type === Result.DRAW) streakStr = ` 🟰 ${user.streak.count}D`;
       }
 
       const drawsStr = user.draws > 0 ? ` - ${user.draws}D` : "";
