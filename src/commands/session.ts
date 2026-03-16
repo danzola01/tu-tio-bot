@@ -31,7 +31,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
       } else if (match.result === Result.LOSS) {
         losses++;
       } else if (match.result === Result.DRAW) {
-        draws++
+        draws++;
       }
     }
 
@@ -50,7 +50,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
       } else if (match.result === Result.LOSS) {
         line = `🔴 **LOSS** on ${match.map} (${match.mode})\n`;
       } else if (match.result === Result.DRAW) {
-        line = `🟡 **DRAW** on ${match.map} (${match.mode})\n`
+        line = `🟡 **DRAW** on ${match.map} (${match.mode})\n`;
       } else {
         continue;
       }
