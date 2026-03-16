@@ -309,7 +309,7 @@ export class StatsService {
       const stats = teamMap.get(key) || { wins: 0, losses: 0, draws: 0, userIds: ids };
       if (m.result === Result.WIN) stats.wins++;
       else if (m.result === Result.LOSS) stats.losses++;
-      else if (m.result === Result.DRAW) stats.draws++
+      else if (m.result === Result.DRAW) stats.draws++;
       teamMap.set(key, stats);
     }
 
