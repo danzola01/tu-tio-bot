@@ -5,7 +5,6 @@ A Discord bot built with TypeScript, Discord.js, and Prisma (SQLite) to track yo
 ## Features
 
 - **Match Tracking**: Quickly record match outcomes (Win/Loss) with map and mode details.
-- **Guided Flow**: Interactive buttons and select menus for easy match entry.
 - **Winrate Statistics**: View detailed winrate stats filtered by game mode or specific maps.
 - **Autocomplete Support**: Map suggestions based on the selected game mode.
 
@@ -51,13 +50,12 @@ A Discord bot built with TypeScript, Discord.js, and Prisma (SQLite) to track yo
 
 ### Commands
 
-- `/match add [mode] [map] [result]`: Directly add a match result.
-- `/match start`: Start a guided, interactive flow to record a match.
+- `/match add [map] [result]`: Directly add a match result.
 - `/stats [mode] [map]`: View your winrate. Filters are optional.
 
 ### Examples
 
-- Record a win on King's Row: `/match add mode:Hybrid map:King's Row result:Win`
+- Record a win on King's Row: `/match add map:King's Row result:Win`
 - See overall stats: `/stats`
 - See stats for a specific mode: `/stats mode:Control`
 
