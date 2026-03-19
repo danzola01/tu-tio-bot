@@ -62,7 +62,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     if (command?.autocomplete) {
       try {
-        await command.autocomplete(interaction);
+        await command.autocomplete(interaction, services);
       } catch (error) {
         logger.error(error);
       }

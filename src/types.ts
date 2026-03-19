@@ -24,6 +24,6 @@ export type AnyInteraction =
 export interface Command {
   data: SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder;
   execute: (interaction: ChatInputCommandInteraction, services: Services) => Promise<void>;
-  autocomplete?: (interaction: AutocompleteInteraction) => Promise<void>;
+  autocomplete?: (interaction: AutocompleteInteraction, services: Services) => Promise<void>;
   handleComponent?: (interaction: AnyInteraction, services: Services) => Promise<void>;
 }

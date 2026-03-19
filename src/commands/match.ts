@@ -64,11 +64,13 @@ export const data = new SlashCommandBuilder()
       .addStringOption(option => option.setName("player5_hero").setDescription("Hero played by Squadmate 5").setRequired(false).setAutocomplete(true))
   );
 
-export async function autocomplete(interaction: AutocompleteInteraction) {
+export async function autocomplete(interaction: AutocompleteInteraction, services: Services) {
   const focusedOption = interaction.options.getFocused(true);
 
   if (focusedOption.name === "map") {
-    const choices = AllMaps;
+    const mostUsed = await services.match.getMostUsedMaps(interaction.guildId!);
+    const choices = [...new Set([...mostUsed, ...AllMaps])];
+
     const filtered = choices
       .filter((choice) => choice.toLowerCase().includes(focusedOption.value.toLowerCase()))
       .slice(0, 25);
@@ -78,6 +80,18 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
     );
   } else if (focusedOption.name.endsWith("hero")) {
     const role = interaction.options.getString("role") as Role | null;
+    
+    let targetUserId = interaction.user.id;
+    const match = focusedOption.name.match(/^player(\d+)_hero$/);
+    if (match) {
+      const playerOption = interaction.options.get(`player${match[1]}`);
+      if (playerOption?.value) {
+        targetUserId = playerOption.value as string;
+      }
+    }
+
+    const mostUsed = await services.match.getMostUsedHeroes(interaction.guildId!, targetUserId);
+    
     let choices: string[] = [];
 
     if (focusedOption.name === "hero" && role && HeroesByRole[role]) {
@@ -86,7 +100,9 @@ export async function autocomplete(interaction: AutocompleteInteraction) {
       choices = AllHeroes;
     }
 
-    const filtered = choices
+    const sortedChoices = [...new Set([...mostUsed.filter(h => choices.includes(h)), ...choices])];
+
+    const filtered = sortedChoices
       .filter((choice) =>
         choice.toLowerCase().includes(focusedOption.value.toLowerCase())
       )

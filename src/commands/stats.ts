@@ -55,17 +55,26 @@ export const data = new SlashCommandBuilder()
   )
   .addUserOption(option => option.setName("user").setDescription("Filter by a specific player").setRequired(false));
 
-export async function autocomplete(interaction: AutocompleteInteraction) {
+export async function autocomplete(interaction: AutocompleteInteraction, services: Services) {
   const focusedOption = interaction.options.getFocused(true);
 
   if (focusedOption.name === "map") {
     const mode = interaction.options.getString("mode") as GameMode | null;
-    const choices = mode && MapsByMode[mode] ? MapsByMode[mode] : Object.values(MapsByMode).flat();
+    const mostUsed = await services.match.getMostUsedMaps(interaction.guildId!);
+    const allRelevantMaps = mode && MapsByMode[mode] ? MapsByMode[mode] : Object.values(MapsByMode).flat();
+    
+    const choices = [...new Set([...mostUsed.filter(m => allRelevantMaps.includes(m)), ...allRelevantMaps])];
     const filtered = choices.filter(c => c.toLowerCase().includes(focusedOption.value.toLowerCase())).slice(0, 25);
     await interaction.respond(filtered.map(c => ({ name: c, value: c })));
   } else if (focusedOption.name === "hero") {
     const role = interaction.options.getString("role") as Role | null;
-    const choices = role && HeroesByRole[role] ? HeroesByRole[role] : AllHeroes;
+    const user = interaction.options.getUser("user");
+    const targetUserId = user?.id || interaction.user.id;
+    
+    const mostUsed = await services.match.getMostUsedHeroes(interaction.guildId!, targetUserId);
+    const allRelevantHeroes = role && HeroesByRole[role] ? HeroesByRole[role] : AllHeroes;
+
+    const choices = [...new Set([...mostUsed.filter(h => allRelevantHeroes.includes(h)), ...allRelevantHeroes])];
     const filtered = choices.filter(c => c.toLowerCase().includes(focusedOption.value.toLowerCase())).slice(0, 25);
     await interaction.respond(filtered.map(c => ({ name: c, value: c })));
   }

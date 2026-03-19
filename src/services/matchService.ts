@@ -62,4 +62,48 @@ export class MatchService {
       data: { deletedAt: new Date() },
     });
   }
+
+  async getMostUsedMaps(guildId: string): Promise<string[]> {
+    const maps = await this.db.match.groupBy({
+      by: ["map"],
+      where: {
+        guildId,
+        deletedAt: null,
+      },
+      _count: {
+        map: true,
+      },
+      orderBy: {
+        _count: {
+          map: "desc",
+        },
+      },
+    });
+
+    return maps.map((m) => m.map);
+  }
+
+  async getMostUsedHeroes(guildId: string, userId: string): Promise<string[]> {
+    const heroes = await this.db.matchPlayer.groupBy({
+      by: ["hero"],
+      where: {
+        userId,
+        hero: { not: null },
+        match: {
+          guildId,
+          deletedAt: null,
+        },
+      },
+      _count: {
+        hero: true,
+      },
+      orderBy: {
+        _count: {
+          hero: "desc",
+        },
+      },
+    });
+
+    return heroes.map((h) => h.hero as string);
+  }
 }
