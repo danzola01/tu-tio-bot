@@ -68,8 +68,8 @@ export async function autocomplete(interaction: AutocompleteInteraction, service
     await interaction.respond(filtered.map(c => ({ name: c, value: c })));
   } else if (focusedOption.name === "hero") {
     const role = interaction.options.getString("role") as Role | null;
-    const user = interaction.options.getUser("user");
-    const targetUserId = user?.id || interaction.user.id;
+    const userOption = interaction.options.get("user");
+    const targetUserId = (userOption?.value as string) || interaction.user.id;
     
     const mostUsed = await services.match.getMostUsedHeroes(interaction.guildId!, targetUserId);
     const allRelevantHeroes = role && HeroesByRole[role] ? HeroesByRole[role] : AllHeroes;
