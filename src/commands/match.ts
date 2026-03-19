@@ -54,13 +54,13 @@ export const data = new SlashCommandBuilder()
           .setRequired(false)
           .setAutocomplete(true)
       )
-      .addUserOption(option => option.setName("player2").setDescription("Squadmate 2").setRequired(false))
+      .addStringOption(option => option.setName("player2").setDescription("Squadmate 2").setRequired(false).setAutocomplete(true))
       .addStringOption(option => option.setName("player2_hero").setDescription("Hero played by Squadmate 2").setRequired(false).setAutocomplete(true))
-      .addUserOption(option => option.setName("player3").setDescription("Squadmate 3").setRequired(false))
+      .addStringOption(option => option.setName("player3").setDescription("Squadmate 3").setRequired(false).setAutocomplete(true))
       .addStringOption(option => option.setName("player3_hero").setDescription("Hero played by Squadmate 3").setRequired(false).setAutocomplete(true))
-      .addUserOption(option => option.setName("player4").setDescription("Squadmate 4").setRequired(false))
+      .addStringOption(option => option.setName("player4").setDescription("Squadmate 4").setRequired(false).setAutocomplete(true))
       .addStringOption(option => option.setName("player4_hero").setDescription("Hero played by Squadmate 4").setRequired(false).setAutocomplete(true))
-      .addUserOption(option => option.setName("player5").setDescription("Squadmate 5").setRequired(false))
+      .addStringOption(option => option.setName("player5").setDescription("Squadmate 5").setRequired(false).setAutocomplete(true))
       .addStringOption(option => option.setName("player5_hero").setDescription("Hero played by Squadmate 5").setRequired(false).setAutocomplete(true))
   );
 
@@ -78,6 +78,22 @@ export async function autocomplete(interaction: AutocompleteInteraction, service
     await interaction.respond(
       filtered.map((choice) => ({ name: choice, value: choice }))
     );
+  } else if (focusedOption.name.match(/^player\d+$/)) {
+    const query = focusedOption.value.toLowerCase();
+    
+    // Fetch members from the guild, filtering out bots and the caller
+    const members = await interaction.guild?.members.fetch({ query, limit: 25 });
+    if (!members) {
+      await interaction.respond([]);
+      return;
+    }
+
+    const filtered = members
+      .filter(m => !m.user.bot && m.id !== interaction.user.id)
+      .map(m => ({ name: m.displayName, value: m.id }))
+      .slice(0, 25);
+
+    await interaction.respond(filtered);
   } else if (focusedOption.name.endsWith("hero")) {
     const role = interaction.options.getString("role") as Role | null;
     
@@ -138,11 +154,11 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     playersMap.set(interaction.user.id, { role, hero });
 
     const addSquadmate = (num: number) => {
-      const p = interaction.options.getUser(`player${num}`);
+      const pId = interaction.options.getString(`player${num}`);
       const rawH = interaction.options.getString(`player${num}_hero`);
       const h = isValidHeroName(rawH) ? rawH : null;
-      if (p && !p.bot) {
-        playersMap.set(p.id, { role: null, hero: h });
+      if (pId) {
+        playersMap.set(pId, { role: null, hero: h });
       }
     };
 

@@ -18,7 +18,7 @@ const services: Services = {
 };
 
 const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
 });
 
 const commands = new Collection<string, Command>();

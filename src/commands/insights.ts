@@ -1,25 +1,45 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
 import { logger } from "../infra/logger.js";
 import type { Services } from "../types.js";
 
 export const data = new SlashCommandBuilder()
   .setName("insights")
   .setDescription("Get personalized Overwatch insights and recommendations")
-  .addUserOption(option => option.setName("user").setDescription("The user to get insights for").setRequired(false));
+  .addStringOption(option => option.setName("user").setDescription("The user to get insights for").setRequired(false).setAutocomplete(true));
+
+export async function autocomplete(interaction: AutocompleteInteraction, services: Services) {
+  const focusedOption = interaction.options.getFocused(true);
+
+  if (focusedOption.name === "user") {
+    const query = focusedOption.value.toLowerCase();
+    const members = await interaction.guild?.members.fetch({ query, limit: 25 });
+    if (!members) {
+      await interaction.respond([]);
+      return;
+    }
+
+    const filtered = members
+      .filter(m => !m.user.bot)
+      .map(m => ({ name: m.displayName, value: m.id }))
+      .slice(0, 25);
+
+    await interaction.respond(filtered);
+  }
+}
 
 export async function execute(interaction: ChatInputCommandInteraction, services: Services) {
   await interaction.deferReply();
 
   try {
-    const optionUser = interaction.options.getUser("user");
-    const targetUser = optionUser && !optionUser.bot ? optionUser : interaction.user;
+    const userId = interaction.options.getString("user");
+    const targetUserId = userId || interaction.user.id;
 
-    const mapStats = await services.stats.getMapStats(interaction.guildId!, targetUser.id);
-    const teammateStats = await services.stats.getTeammateStats(interaction.guildId!, targetUser.id);
-    const overall = await services.stats.getStats({ guildId: interaction.guildId!, userId: targetUser.id });
+    const mapStats = await services.stats.getMapStats(interaction.guildId!, targetUserId);
+    const teammateStats = await services.stats.getTeammateStats(interaction.guildId!, targetUserId);
+    const overall = await services.stats.getStats({ guildId: interaction.guildId!, userId: targetUserId });
 
     if (overall.total < 5) {
-      await interaction.editReply(`❌ <@${targetUser.id}> needs to play at least 5 matches to generate insights.`);
+      await interaction.editReply(`❌ <@${targetUserId}> needs to play at least 5 matches to generate insights.`);
       return;
     }
 
@@ -33,7 +53,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     const qualifyingTeammates = teammateStats.filter(t => t.total >= 3).sort((a, b) => b.winRate - a.winRate);
     let bestTeammate = qualifyingTeammates[0];
 
-    let message = `🧠 **Personalized Insights for <@${targetUser.id}>**\n\n`;
+    let message = `🧠 **Personalized Insights for <@${targetUserId}>**\n\n`;
     const drawsStr = overall.draws > 0 ? ` - ${overall.draws}D` : "";
     message += `**Overall Winrate:** ${overall.wins}W - ${overall.losses}L${drawsStr} (${overall.winRate.toFixed(1)}%)\n\n`;
 

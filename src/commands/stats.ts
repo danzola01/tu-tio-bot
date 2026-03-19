@@ -53,7 +53,7 @@ export const data = new SlashCommandBuilder()
         { name: "Line Chart (Winrate Over Time)", value: "line" }
       )
   )
-  .addUserOption(option => option.setName("user").setDescription("Filter by a specific player").setRequired(false));
+  .addStringOption(option => option.setName("user").setDescription("Filter by a specific player").setRequired(false).setAutocomplete(true));
 
 export async function autocomplete(interaction: AutocompleteInteraction, services: Services) {
   const focusedOption = interaction.options.getFocused(true);
@@ -77,6 +77,20 @@ export async function autocomplete(interaction: AutocompleteInteraction, service
     const choices = [...new Set([...mostUsed.filter(h => allRelevantHeroes.includes(h)), ...allRelevantHeroes])];
     const filtered = choices.filter(c => c.toLowerCase().includes(focusedOption.value.toLowerCase())).slice(0, 25);
     await interaction.respond(filtered.map(c => ({ name: c, value: c })));
+  } else if (focusedOption.name === "user") {
+    const query = focusedOption.value.toLowerCase();
+    const members = await interaction.guild?.members.fetch({ query, limit: 25 });
+    if (!members) {
+      await interaction.respond([]);
+      return;
+    }
+
+    const filtered = members
+      .filter(m => !m.user.bot)
+      .map(m => ({ name: m.displayName, value: m.id }))
+      .slice(0, 25);
+
+    await interaction.respond(filtered);
   }
 }
 
@@ -88,7 +102,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
     const map = interaction.options.getString("map");
     const role = interaction.options.getString("role");
     const hero = interaction.options.getString("hero");
-    const user = interaction.options.getUser("user");
+    const userId = interaction.options.getString("user");
     const graphType = interaction.options.getString("graph") || "pie";
 
     const filter: GetStatsInput = {
@@ -97,14 +111,14 @@ export async function execute(interaction: ChatInputCommandInteraction, services
         map: map ?? undefined,
         role: role ?? undefined,
         hero: hero ?? undefined,
-        userId: user?.id ?? undefined
+        userId: userId ?? undefined
     };
 
     const overall = await services.stats.getStats(filter);
     const teamBreakdown = await services.stats.getTeamBreakdown(interaction.guildId!, filter);
 
     let title = "📊 **Server Stats**";
-    if (user) title = `📊 **Stats for <@${user.id}>**`;
+    if (userId) title = `📊 **Stats for <@${userId}>**`;
     
     let message = `${title}${mode ? ` for ${mode}` : ""}${map ? ` on ${map}` : ""}${role ? ` as ${role}` : ""}${hero ? ` playing ${hero}` : ""}:\n\n`;
     const overallDrawsStr = overall.draws > 0 ? ` - ${overall.draws}D` : "";

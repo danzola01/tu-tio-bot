@@ -1,4 +1,4 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction } from "discord.js";
+import { SlashCommandBuilder, ChatInputCommandInteraction, AutocompleteInteraction } from "discord.js";
 import { Result } from "../services/mapService.js";
 import { logger } from "../infra/logger.js";
 import type { Services } from "../types.js";
@@ -6,17 +6,38 @@ import type { Services } from "../types.js";
 export const data = new SlashCommandBuilder()
   .setName("session")
   .setDescription("View your match statistics for the last 12 hours")
-  .addUserOption(option => option.setName("user").setDescription("View session for a specific player").setRequired(false));
+  .addStringOption(option => option.setName("user").setDescription("View session for a specific player").setRequired(false).setAutocomplete(true));
+
+export async function autocomplete(interaction: AutocompleteInteraction, services: Services) {
+  const focusedOption = interaction.options.getFocused(true);
+
+  if (focusedOption.name === "user") {
+    const query = focusedOption.value.toLowerCase();
+    const members = await interaction.guild?.members.fetch({ query, limit: 25 });
+    if (!members) {
+      await interaction.respond([]);
+      return;
+    }
+
+    const filtered = members
+      .filter(m => !m.user.bot)
+      .map(m => ({ name: m.displayName, value: m.id }))
+      .slice(0, 25);
+
+    await interaction.respond(filtered);
+  }
+}
 
 export async function execute(interaction: ChatInputCommandInteraction, services: Services) {
   await interaction.deferReply();
 
   try {
-    const targetUser = interaction.options.getUser("user") || interaction.user;
-    const matches = await services.stats.getSessionMatches(interaction.guildId!, targetUser.id, 12);
+    const userId = interaction.options.getString("user");
+    const targetUserId = userId || interaction.user.id;
+    const matches = await services.stats.getSessionMatches(interaction.guildId!, targetUserId, 12);
 
     if (matches.length === 0) {
-      await interaction.editReply(`🌙 <@${targetUser.id}> hasn't played any matches in the last 12 hours. Time to queue up!`);
+      await interaction.editReply(`🌙 <@${targetUserId}> hasn't played any matches in the last 12 hours. Time to queue up!`);
       return;
     }
 
@@ -77,7 +98,7 @@ export async function execute(interaction: ChatInputCommandInteraction, services
       matchHistory += `…and ${remainingMatches} more match${remainingMatches === 1 ? "" : "es"}.\n`;
     }
 
-    let message = `🌙 **Tonight's Session for <@${targetUser.id}>**\n\n`;
+    let message = `🌙 **Tonight's Session for <@${targetUserId}>**\n\n`;
     const drawsStr = draws > 0 ? ` - ${draws}D` : "";
     message += `**Summary:** ${wins}W - ${losses}L${drawsStr} (${winrate}% WR) ${summaryEmoji}\n`;
     message += `**Net Games:** ${netResult > 0 ? '+' : ''}${netResult}\n\n`;
