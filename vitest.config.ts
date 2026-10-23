@@ -23,6 +23,8 @@ export default defineConfig({
     ],
     coverage: {
       provider: "v8",
+      include: ["src/**/*.ts"],
+      exclude: ["src/generated/**"],
       reporter: ["text", "html"],
     },
   },

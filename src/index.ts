@@ -1,85 +1,40 @@
-import { Client, GatewayIntentBits, Collection, Events } from "discord.js";
 import { config } from "./config.js";
+import { createBotClient } from "./bot/client.js";
+import { createCommandRegistry } from "./bot/registry.js";
+import { createGameModules } from "./games/index.js";
+import { createDatabase } from "./infra/db.js";
 import { logger } from "./infra/logger.js";
-import { db } from "./infra/db.js";
-import { MatchService } from "./services/matchService.js";
-import { StatsService } from "./services/statsService.js";
-import * as match from "./commands/match.js";
-import * as stats from "./commands/stats.js";
-import * as leaderboard from "./commands/leaderboard.js";
-import * as undo from "./commands/undo.js";
-import * as insights from "./commands/insights.js";
-import * as session from "./commands/session.js";
-import type { Command, Services } from "./types.js";
 
-const services: Services = {
-  match: new MatchService(db),
-  stats: new StatsService(db),
-};
+const db = createDatabase(config.DATABASE_URL);
+const registry = createCommandRegistry(createGameModules(db));
+const client = createBotClient(registry);
+let shuttingDown = false;
 
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
-});
-
-const commands = new Collection<string, Command>();
-commands.set(match.data.name, match as Command);
-commands.set(stats.data.name, stats as Command);
-commands.set(leaderboard.data.name, leaderboard as Command);
-commands.set(undo.data.name, undo as Command);
-commands.set(insights.data.name, insights as Command);
-commands.set(session.data.name, session as Command);
-
-client.once(Events.ClientReady, (readyClient) => {
-  logger.info(`✅ Ready! Logged in as ${readyClient.user.tag}`);
-});
-
-client.on(Events.InteractionCreate, async (interaction) => {
-  if (interaction.isChatInputCommand()) {
-    const command = commands.get(interaction.commandName);
-
-    if (!command) {
-      logger.error(`No command matching ${interaction.commandName} was found.`);
-      return;
-    }
-
-    try {
-      await command.execute(interaction, services);
-    } catch (error) {
-      logger.error(error);
-      const errorMessage = {
-        content: "There was an error while executing this command!",
-        ephemeral: true,
-      };
-      
-      if (interaction.replied || interaction.deferred) {
-        await interaction.followUp(errorMessage);
-      } else {
-        await interaction.reply(errorMessage);
-      }
-    }
-  } else if (interaction.isAutocomplete()) {
-    const command = commands.get(interaction.commandName);
-
-    if (command?.autocomplete) {
-      try {
-        await command.autocomplete(interaction, services);
-      } catch (error) {
-        logger.error(error);
-      }
-    }
+async function shutdown(exitCode: number) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  try {
+    await client.destroy();
+    await db.$disconnect();
+  } catch (error) {
+    logger.error({ err: error }, "Shutdown failed");
+    exitCode = 1;
   }
-});
+  process.exitCode = exitCode;
+}
 
-client.login(config.DISCORD_TOKEN).catch((err) => {
-  logger.error("❌ Failed to login:", err);
-  process.exit(1);
+process.once("SIGINT", () => { void shutdown(0); });
+process.once("SIGTERM", () => { void shutdown(0); });
+process.on("unhandledRejection", (reason) => {
+  logger.error({ err: reason }, "Unhandled rejection");
+  void shutdown(1);
 });
-
-process.on("unhandledRejection", (reason, promise) => {
-  logger.error({ promise, reason }, "Unhandled Rejection");
-});
-
 process.on("uncaughtException", (error) => {
-  logger.error(error, "Uncaught Exception");
-  process.exit(1);
+  logger.fatal({ err: error }, "Uncaught exception");
+  void shutdown(1);
+});
+
+client.login(config.DISCORD_TOKEN).catch(async (error: unknown) => {
+  logger.error({ err: error }, "Discord login failed");
+  await shutdown(1);
 });

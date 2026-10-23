@@ -1,85 +1,79 @@
-# Tu Tio Bot - Overwatch Winrate Tracker
+# Tu Tio Bot
 
-A Discord bot built with TypeScript, Discord.js, and Prisma (SQLite) to track your Overwatch match results and analyze your winrate across different modes and maps.
+A Discord bot for our server, organized into independent game modules. Overwatch match tracking is implemented. The [Deadlock voice timer design](docs/deadlock-voice-timers.md) is agreed and ready for a separate implementation.
 
-## Features
+## Requirements
 
-- **Match Tracking**: Quickly record match outcomes (Win/Loss) with map and mode details.
-- **Winrate Statistics**: View detailed winrate stats filtered by game mode or specific maps.
-- **Autocomplete Support**: Map suggestions based on the selected game mode.
-
-## Prerequisites
-
-- [Node.js](https://nodejs.org/) (v20 or higher recommended)
-- [npm](https://www.npmjs.com/)
-- A Discord Bot Token (via [Discord Developer Portal](https://discord.com/developers/applications))
+Use **Node 24.22.1 or a newer Node 24 patch**, with npm. The pinned version is in [.node-version](.node-version) and [.nvmrc](.nvmrc). This baseline includes the [October 21, 2026 Node security release](https://nodejs.org/en/blog/release/v24.22.1).
 
 ## Setup
 
-1. **Clone the repository:**
+1. Select the project runtime, for example with nvm:
+
    ```bash
-   git clone <repository-url>
-   cd tu-tio-bot
+   nvm install
+   nvm use
    ```
 
-2. **Install dependencies:**
+2. Install dependencies and generate Prisma Client:
+
    ```bash
-   npm install
+   npm ci
+   cp .env.example .env
    ```
 
-3. **Configure environment variables:**
-   Create a `.env` file in the root directory:
-   ```env
-   DISCORD_TOKEN=your_bot_token
-   CLIENT_ID=your_bot_client_id
-   GUILD_ID=your_discord_server_id
-   DATABASE_URL="file:./dev.db"
-   ```
+3. Fill in `.env`: `DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, and `DATABASE_URL`. Keep credentials out of Git. With `DATABASE_URL="file:./dev.db"`, the database remains at `prisma/dev.db`, including after the Prisma upgrade.
 
-4. **Initialize the database:**
+4. Apply the existing migrations:
+
    ```bash
-   npx prisma migrate dev --name init
+   npx prisma migrate deploy
    ```
 
-5. **Deploy Slash Commands:**
+5. Enable **Server Members Intent** in the Discord Developer Portal for Overwatch member autocomplete, invite the bot with `bot` and `applications.commands` scopes, and give it access to its text channels. Register commands and start:
+
    ```bash
    npm run deploy
+   npm run dev
    ```
 
-## Usage
+For a production install or an existing Oracle VM, follow [deployment and upgrading](docs/deployment.md).
 
-### Commands
+## Current Overwatch commands
 
-- `/match add [map] [result]`: Directly add a match result.
-- `/stats [mode] [map]`: View your winrate. Filters are optional.
+Existing command names and options are preserved:
 
-### Examples
+- `/match add`: record a win, loss, or draw, with map, optional role/hero, and up to four squadmates.
+- `/stats`: filter winrates by mode, map, player, role, or hero; choose a pie or line chart.
+- `/leaderboard`: server rankings for players with at least five recorded matches.
+- `/undo`: undo your most recent reported match in this server.
+- `/insights`: personalized map and teammate insights.
+- `/session`: results from the last 12 hours.
 
-- Record a win on King's Row: `/match add map:King's Row result:Win`
-- See overall stats: `/stats`
-- See stats for a specific mode: `/stats mode:Control`
+Map, hero, and member autocomplete remain available. Charts use the external QuickChart renderer.
 
 ## Development
 
-Run the bot in development mode with auto-reload:
 ```bash
-npm run dev
+npm run typecheck       # Application, tests, and configuration
+npm run build           # Compile into dist/
+npm test                # Unit and isolated SQLite integration tests
+npm run test:coverage
+npm run check           # Typecheck, build, tests, and dependency audit
+npm start               # Run the compiled bot
 ```
 
-Build the project:
-```bash
-npm run build
-```
+Integration tests create and remove temporary SQLite databases, apply the real migration history, and never reset the configured development or production database. Generated Prisma Client, build output, credentials, and database files are ignored by Git.
 
-Start the production build:
-```bash
-npm start
-```
+`npm run wipe:overwatch` permanently deletes all Overwatch match history in the configured database. The old `npm run wipe` remains an alias. This is unrelated to other games' future data.
 
-## Tech Stack
+## Extending the bot
 
-- **Language**: TypeScript
-- **Framework**: Discord.js v14
-- **Database**: SQLite with Prisma ORM
-- **Logging**: Pino
-- **Validation**: Zod
+Each game owns its commands, rules, and data access under `src/games/<game>/`. Shared Discord interaction handling, command registration, configuration, logging, and database construction stay outside those directories. Register a game's factory once in `src/games/index.ts`; runtime and command deployment use the same catalog.
+
+- [Architecture and adding a game](docs/architecture.md)
+- [Deployment and upgrading](docs/deployment.md)
+- [Security review and dependency maintenance](docs/security-review.md)
+- [Game module decision](docs/adr/0001-game-owned-features.md)
+- [Project terminology](GLOSSARY.md)
+- [Planned Deadlock feature](docs/deadlock-voice-timers.md)

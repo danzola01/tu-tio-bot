@@ -1,24 +1,12 @@
-import { PrismaClient } from "@prisma/client";
-import { beforeEach, afterAll } from "vitest";
+import { beforeEach, afterAll, inject } from "vitest";
+import { createDatabase } from "../src/infra/db.js";
 
-const TEST_DB_URL = "file:./test.sqlite";
-
-// Ensure we are using the test database
-process.env.DATABASE_URL = TEST_DB_URL;
-
-export const testDb = new PrismaClient();
+// Always use the isolated database provisioned by integration globalSetup.
+export const testDb = createDatabase(inject("databaseUrl"));
 
 beforeEach(async () => {
-  // Wipe data before each test
-  const tablenames = await testDb.$queryRaw<
-    Array<{ name: string }>
-  >`SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'prisma_%' AND name NOT LIKE '_prisma_%';`;
-
-  for (const { name } of tablenames) {
-    if (name !== 'sqlite_sequence') {
-      await testDb.$executeRawUnsafe(`DELETE FROM "${name}";`);
-    }
-  }
+  await testDb.matchPlayer.deleteMany();
+  await testDb.match.deleteMany();
 });
 
 afterAll(async () => {

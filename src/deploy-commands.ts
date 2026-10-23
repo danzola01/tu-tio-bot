@@ -1,35 +1,23 @@
 import { REST, Routes } from "discord.js";
 import { config } from "./config.js";
+import { createCommandRegistry } from "./bot/registry.js";
+import { createGameModules } from "./games/index.js";
+import { createDatabase } from "./infra/db.js";
 import { logger } from "./infra/logger.js";
-import * as match from "./commands/match.js";
-import * as stats from "./commands/stats.js";
-import * as leaderboard from "./commands/leaderboard.js";
-import * as undo from "./commands/undo.js";
-import * as insights from "./commands/insights.js";
-import * as session from "./commands/session.js";
 
-const commands = [
-  match.data.toJSON(),
-  stats.data.toJSON(),
-  leaderboard.data.toJSON(),
-  undo.data.toJSON(),
-  insights.data.toJSON(),
-  session.data.toJSON(),
-];
+const db = createDatabase(config.DATABASE_URL);
 
-const rest = new REST().setToken(config.DISCORD_TOKEN);
-
-(async () => {
-  try {
-    logger.info(`Started refreshing ${commands.length} application (/) commands.`);
-
-    const data: any = await rest.put(
-      Routes.applicationGuildCommands(config.CLIENT_ID, config.GUILD_ID),
-      { body: commands }
-    );
-
-    logger.info(`Successfully reloaded ${data.length} application (/) commands.`);
-  } catch (error) {
-    logger.error(error);
-  }
-})();
+try {
+  const { definitions } = createCommandRegistry(createGameModules(db));
+  const rest = new REST().setToken(config.DISCORD_TOKEN);
+  logger.info({ count: definitions.length }, "Refreshing guild slash commands");
+  await rest.put(Routes.applicationGuildCommands(config.CLIENT_ID, config.GUILD_ID), {
+    body: definitions,
+  });
+  logger.info({ count: definitions.length }, "Guild slash commands refreshed");
+} catch (error) {
+  logger.error({ err: error }, "Slash-command deployment failed");
+  process.exitCode = 1;
+} finally {
+  await db.$disconnect();
+}
