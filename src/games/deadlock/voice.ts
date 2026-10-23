@@ -21,6 +21,7 @@ export class DiscordVoiceTransport implements VoiceTransport {
     let closed = false;
     let busy = false;
     let current: Announcement | undefined;
+    let recoveryTimer: ReturnType<typeof setTimeout> | undefined;
     const queue: Announcement[] = [];
 
     const clear = (error?: Error) => {
@@ -32,6 +33,7 @@ export class DiscordVoiceTransport implements VoiceTransport {
     const close = (error?: Error) => {
       if (closed) return;
       closed = true;
+      if (recoveryTimer) clearTimeout(recoveryTimer);
       signal.removeEventListener("abort", abort);
       clear(error);
       subscription?.unsubscribe();
@@ -61,22 +63,16 @@ export class DiscordVoiceTransport implements VoiceTransport {
     player.on("error", () => fail("Voice playback failed."));
     connection.on("error", () => fail("Voice connection failed."));
     connection.on(VoiceConnectionStatus.Destroyed, () => fail("Voice connection ended."));
-    let recovering = false;
-    connection.on(VoiceConnectionStatus.Disconnected, () => {
-      if (closed || recovering) return;
-      recovering = true;
-      clear();
-      void (async () => {
-        try {
-          const transition = AbortSignal.any([signal, AbortSignal.timeout(5_000)]);
-          await Promise.race([
-            entersState(connection, VoiceConnectionStatus.Signalling, transition),
-            entersState(connection, VoiceConnectionStatus.Connecting, transition),
-          ]);
-          await entersState(connection, VoiceConnectionStatus.Ready, AbortSignal.any([signal, AbortSignal.timeout(15_000)]));
-        } catch { fail("Voice connection could not reconnect."); }
-        finally { recovering = false; }
-      })();
+    connection.on("stateChange", (before, after) => {
+      if (closed) return;
+      if (after.status === VoiceConnectionStatus.Ready) {
+        if (recoveryTimer) clearTimeout(recoveryTimer);
+        recoveryTimer = undefined;
+      } else if (before.status === VoiceConnectionStatus.Ready) {
+        // The SDK may leave Ready directly for Signalling or Connecting, too.
+        clear();
+        recoveryTimer = setTimeout(() => fail("Voice connection could not reconnect."), 20_000);
+      }
     });
     signal.addEventListener("abort", abort, { once: true });
 

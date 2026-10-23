@@ -65,4 +65,20 @@ describe("Deadlock match clock", () => {
     now = 780_000;
     expect(run.takeDue()).toEqual([{ at: 780, clips: [sinners.recurring.due] }]);
   });
+
+  it("supports recurring warnings independently of first and recurring due callouts", () => {
+    let now = 0;
+    const small = camp();
+    small.objective.repeatEvery = 90;
+    small.objective.first = { ...small.objective.first, announce: false, warningSeconds: null };
+    small.objective.recurring = { ...small.objective.recurring, announce: false, warningSeconds: 20 };
+    small.recurring.warning = { text: "Check Small camps in 20 seconds.", path: "repeat-warning.ogg" };
+    const run = new ReminderRun([small], 0, () => now);
+    expect(run.status().nextAt).toBe(190);
+    now = 190_000;
+    expect(run.takeDue()).toEqual([{ at: 190, clips: [small.recurring.warning] }]);
+    now = 210_000;
+    expect(run.takeDue()).toEqual([]);
+    expect(run.status().nextAt).toBe(280);
+  });
 });

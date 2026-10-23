@@ -19,6 +19,15 @@ function commandCall(subcommand: string, values: Record<string, string | boolean
 }
 
 describe("Deadlock Discord commands", () => {
+  it.each([{ id: "owner" }, { ownerId: "owner" }])("uses application or team ownership when no override is set: %j", async (owner) => {
+    const game = createDeadlockModule(testDb, { speech: { prepare: async (text) => ({ text, path: "/audio.ogg" }) } });
+    const edit = commandCall("edit", { objective: "small-camps", enabled: false }, "owner", "objective");
+    Object.assign(edit.interaction, { client: { application: { owner: null, fetch: async () => ({ owner }) } } });
+    await game.commands[0]!.execute(edit.interaction);
+    expect(edit.editReply).toHaveBeenCalledWith(expect.stringContaining("next start"));
+    await game.dispose!();
+  });
+
   it("restricts objective edits to the bot owner and exposes saved additions in the schedule", async () => {
     const game = createDeadlockModule(testDb, { ownerId: "owner", speech: { prepare: async (text) => ({ text, path: "/audio.ogg" }) } });
     const command = game.commands[0]!;
@@ -116,6 +125,38 @@ describe("Deadlock Discord commands", () => {
     const respond = vi.fn(async (_choices: unknown) => {});
     await command.autocomplete!({ guildId: "server", options: { getFocused: () => "sin" }, respond } as unknown as AutocompleteInteraction);
     expect(respond).toHaveBeenCalledWith([{ name: "Sinners", value: "sinners" }]);
+    await game.dispose!();
+  });
+
+  it.each(["start", "preview"])("ignores a prior leave acknowledgement while a new %s prepares audio", async (action) => {
+    let block = false;
+    let preparing = () => {};
+    let release = () => {};
+    const entered = new Promise<void>((resolve) => { preparing = resolve; });
+    const pending = new Promise<void>((resolve) => { release = resolve; });
+    const game = createDeadlockModule(testDb, {
+      speech: { prepare: async (text) => { if (block) { preparing(); await pending; } return { text, path: "/audio.ogg" }; } },
+      voice: { connect: async () => ({ play: async () => {}, cancel() {}, close() {} }) },
+    });
+    const client = Object.assign(new EventEmitter(), { user: { id: "bot" } }) as unknown as Client;
+    game.attach!(client);
+    const channel = { id: "voice", type: ChannelType.GuildVoice, isVoiceBased: () => true, members: new Map([["friend", { user: { bot: false } }]]), permissionsFor: () => ({ has: () => true }) };
+    const guild = { id: "server", members: { me: { id: "bot" } }, channels: { cache: new Map([["voice", channel]]) }, voiceStates: { cache: new Map([["friend", { channel }]]) }, voiceAdapterCreator: () => ({ sendPayload: () => true, destroy() {} }) };
+    const call = (name: string, values: Record<string, string> = {}) => {
+      const result = commandCall(name, values, "friend");
+      Object.assign(result.interaction, { guild });
+      return result;
+    };
+    await game.commands[0]!.execute(call("start").interaction);
+    await game.commands[0]!.execute(call("stop").interaction);
+    block = true;
+    const next = call(action, { objective: "sinners" });
+    const starting = game.commands[0]!.execute(next.interaction);
+    await entered;
+    client.emit(Events.VoiceStateUpdate, { guild, id: "bot", channelId: "voice" } as unknown as VoiceState, { guild, id: "bot", channelId: null } as unknown as VoiceState);
+    release();
+    await starting;
+    expect(next.editReply).toHaveBeenCalledWith(expect.stringContaining(action === "preview" ? "Preview ended" : "Running"));
     await game.dispose!();
   });
 });

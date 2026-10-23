@@ -41,14 +41,37 @@ describe("Discord voice playback adapter", () => {
     expect(connection.destroy).toHaveBeenCalledOnce();
   });
 
-  it("reports a permanent disconnection and closes the connection", async () => {
-    const { connection } = discord();
-    const lost = vi.fn();
-    await new DiscordVoiceTransport().connect(target, lost, new AbortController().signal);
-    sdk.ready.mockRejectedValue(new Error("No reconnect"));
-    connection.emit(VoiceConnectionStatus.Disconnected);
-    await vi.waitFor(() => expect(lost).toHaveBeenCalledWith("Voice connection could not reconnect."));
-    expect(connection.destroy).toHaveBeenCalledOnce();
+  it("cancels the recovery deadline when the connection becomes ready again", async () => {
+    vi.useFakeTimers();
+    try {
+      const { connection } = discord();
+      const lost = vi.fn();
+      const voice = await new DiscordVoiceTransport().connect(target, lost, new AbortController().signal);
+      connection.emit("stateChange", { status: VoiceConnectionStatus.Ready }, { status: VoiceConnectionStatus.Connecting });
+      await vi.advanceTimersByTimeAsync(10_000);
+      connection.emit("stateChange", { status: VoiceConnectionStatus.Connecting }, { status: VoiceConnectionStatus.Ready });
+      await vi.advanceTimersByTimeAsync(20_000);
+      expect(lost).not.toHaveBeenCalled();
+      voice.close();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it.each([VoiceConnectionStatus.Signalling, VoiceConnectionStatus.Connecting, VoiceConnectionStatus.Disconnected])("bounds recovery after Ready transitions directly to %s", async (status) => {
+    vi.useFakeTimers();
+    try {
+      const { connection } = discord();
+      const lost = vi.fn();
+      const voice = await new DiscordVoiceTransport().connect(target, lost, new AbortController().signal);
+      const previous = connection.state;
+      connection.state = { status };
+      connection.emit("stateChange", previous, connection.state);
+      await vi.advanceTimersByTimeAsync(19_999);
+      expect(lost).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(lost).toHaveBeenCalledWith("Voice connection could not reconnect.");
+      expect(connection.destroy).toHaveBeenCalledOnce();
+      voice.close();
+    } finally { vi.useRealTimers(); }
   });
 
   it("cancels both current and queued callouts without playing them after a clock correction", async () => {

@@ -59,7 +59,7 @@ This is an explicit in-process catalog, without dynamic plugin loading. Modules 
 
 The `Speech` port prepares a clip from text. `CachedSpeech` uses eSpeak NG and FFmpeg through argument arrays and stdin, caches Ogg Opus by text/voice settings, and atomically publishes generated files. Replacing this provider can improve voice quality without changing objectives or scheduling. `VoiceTransport` and `VoiceSession` isolate Discord joining, DAVE-enabled playback, cancellation, and leaving. Simultaneous reminders form one batch of sequential clips; pending playback is bounded and stale queued batches are skipped.
 
-Deadlock's module declares `GuildVoiceStates`, observes channel membership, and stops when the bot is moved/disconnected or no humans remain. It never receives users' audio. Active clocks are deliberately in memory; after a bot restart, start again with the current match time.
+Deadlock's module declares `GuildVoiceStates`, observes channel membership, and stops when an established connection is moved/disconnected or no humans remain. It ignores earlier leave acknowledgements during a new start's preparation. The voice adapter bounds every transition out of Ready with a 20-second recovery deadline, including direct Signalling/Connecting transitions. It never receives users' audio. Active clocks are deliberately in memory; after a bot restart, start again with the current match time.
 
 ## Data and upgrades
 

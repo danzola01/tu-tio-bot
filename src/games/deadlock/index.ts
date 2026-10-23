@@ -28,7 +28,7 @@ export function createDeadlockModule(db: DbClient, options: DeadlockOptions = {}
       const onVoiceState = (before: VoiceState, after: VoiceState) => {
         const state = matches.status(after.guild.id);
         if (!state) return;
-        if (after.id === client.user?.id && after.channelId !== state.channelId) {
+        if (after.id === client.user?.id && state.connected && after.channelId !== state.channelId) {
           matches.stop(after.guild.id);
           return;
         }

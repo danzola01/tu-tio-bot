@@ -71,7 +71,7 @@ export class DeadlockMatches {
     const match = this.matches.get(guildId);
     if (!match) return null;
     return {
-      channelId: match.target.channelId, phase: match.phase,
+      channelId: match.target.channelId, phase: match.phase, connected: match.voice !== undefined,
       ...(match.run?.status() ?? { elapsed: match.initialTime + (this.now() - match.requestedAt) / 1000, paused: false, nextAt: null }),
     };
   }
