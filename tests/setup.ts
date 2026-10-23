@@ -5,6 +5,7 @@ import { createDatabase } from "../src/infra/db.js";
 export const testDb = createDatabase(inject("databaseUrl"));
 
 beforeEach(async () => {
+  await testDb.deadlockSchedule.deleteMany();
   await testDb.matchPlayer.deleteMany();
   await testDb.match.deleteMany();
 });

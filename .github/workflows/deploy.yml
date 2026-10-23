@@ -60,6 +60,7 @@ jobs:
 
             node scripts/check-runtime.mjs
             npm ci --include=dev
+            npm run check:audio
             npx prisma migrate deploy
             npm run build
             npm run deploy

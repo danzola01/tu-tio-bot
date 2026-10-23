@@ -8,7 +8,7 @@ import { logger } from "./infra/logger.js";
 const db = createDatabase(config.DATABASE_URL);
 
 try {
-  const { definitions } = createCommandRegistry(createGameModules(db));
+  const { definitions } = createCommandRegistry(createGameModules(db, config.games));
   const rest = new REST().setToken(config.DISCORD_TOKEN);
   logger.info({ count: definitions.length }, "Refreshing guild slash commands");
   await rest.put(Routes.applicationGuildCommands(config.CLIENT_ID, config.GUILD_ID), {

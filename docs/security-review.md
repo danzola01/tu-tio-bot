@@ -1,6 +1,6 @@
 # Security and dependency review
 
-Reviewed October 22, 2026 as part of the game-module refactor. This covers the repository's dependency tree, runtime and workflow configuration, current text files for selected secret patterns, and the command/database paths changed in the refactor. It is not a penetration test or a full Git-history secret audit.
+Reviewed October 22, 2026 as part of the game-module refactor and Deadlock implementation. This covers the repository's dependency tree, runtime and workflow configuration, current text files for selected secret patterns, and the changed command/database/voice paths. It is not a penetration test or a full Git-history secret audit.
 
 ## Dependency findings
 
@@ -21,6 +21,8 @@ Updated transitive packages resolve the reported Undici, ws, lodash, nanoid, fas
 
 A clean install still emits an upstream `prebuild-install` deprecation notice from the current native SQLite driver. That transitive installer remains in the supported Prisma adapter's dependency tree; the full advisory audit is clean.
 
+Deadlock adds `@discordjs/voice` 0.19.2 and its supported DAVE implementation. Audio is generated locally by OS-provided eSpeak NG/FFmpeg. Keep those packages patched through the host's package manager; they are outside npm's advisory audit.
+
 ## Runtime and CI
 
 Node 20 in the old deployment workflow is [end-of-life](https://nodejs.org/en/about/previous-releases). The project now targets Node 24.22.1 or a later Node 24 patch. [24.22.1 is an official security release](https://nodejs.org/en/blog/release/v24.22.1). Runtime pins, package engines, strict install checking, and production-start checking agree on this requirement. Verification uses Node 24, rather than the host's older default binary.
@@ -36,6 +38,9 @@ Checkout, setup-node, and SSH actions were upgraded and pinned to release commit
 - Committed development/test SQLite files were removed from the Git index while local copies were preserved. Database files, journals, generated code, and environment variants are ignored. Existing Git history still contains historical database snapshots; this change does not rewrite it.
 - A deployment preflight refuses a checkout change that would remove an existing SQLite file. This protects the initial transition away from tracked snapshots. See [upgrade instructions](deployment.md).
 - Integration tests use unique temporary databases and the real migrations, so they cannot reset the configured live database. Regression checks cover old SQLite timestamp storage, existing match commands, autocomplete routing, and both chart types.
+- Deadlock schedule mutations require the configured/application/team owner. All server members can control its single clock. Objective data is strictly validated and SQLite updates use a revision guard. Audio preparation completes before committing edits, preserving the previous schedule on failure.
+- Speech text is passed through stdin and subprocess argument arrays without a shell. Temporary synthesis files are removed, clips are atomically cached under content hashes, and subprocesses have timeouts. Playback queues are bounded and stop/dispose cancels pending work.
+- Deadlock requests voice states and sends audio; it does not receive or record user speech. Discord voice uses the library's DAVE support. The audio cache contains generated objective wording and is ignored by Git.
 - A current text-file scan for private keys, Discord-token patterns, and AWS access-key patterns found no matches. Values were not printed. This targeted scan does not establish that every possible credential format or historical commit is clean.
 
 ## Remaining deployment checks

@@ -1,6 +1,7 @@
 import type {
   AutocompleteInteraction,
   ChatInputCommandInteraction,
+  Client,
   GatewayIntentBits,
   RESTPostAPIChatInputApplicationCommandsJSONBody,
 } from "discord.js";
@@ -18,4 +19,6 @@ export interface GameModule {
   readonly id: string;
   readonly intents: readonly GatewayIntentBits[];
   readonly commands: readonly Command[];
+  attach?(client: Client): void;
+  dispose?(): void | Promise<void>;
 }

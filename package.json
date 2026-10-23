@@ -21,11 +21,13 @@
     "wipe": "npm run wipe:overwatch",
     "prestart": "node scripts/check-runtime.mjs",
     "predev": "node scripts/check-runtime.mjs",
-    "prebuild": "node scripts/check-runtime.mjs && node scripts/clean-build.mjs"
+    "prebuild": "node scripts/check-runtime.mjs && node scripts/clean-build.mjs",
+    "check:audio": "tsx scripts/check-deadlock-audio.ts"
   },
   "dependencies": {
-    "@prisma/client": "^7.10.1",
+    "@discordjs/voice": "^0.19.2",
     "@prisma/adapter-better-sqlite3": "^7.10.1",
+    "@prisma/client": "^7.10.1",
     "discord.js": "^14.27.0",
     "dotenv": "^18.0.9",
     "pino": "^10.4.0",

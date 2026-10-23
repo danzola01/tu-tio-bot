@@ -38,3 +38,10 @@ model MatchPlayer {
   @@unique([matchId, userId])
   @@index([userId])
 }
+
+model DeadlockSchedule {
+  guildId    String   @id
+  revision   Int      @default(0)
+  objectives Json
+  updatedAt  DateTime @updatedAt
+}

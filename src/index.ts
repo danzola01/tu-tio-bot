@@ -6,19 +6,26 @@ import { createDatabase } from "./infra/db.js";
 import { logger } from "./infra/logger.js";
 
 const db = createDatabase(config.DATABASE_URL);
-const registry = createCommandRegistry(createGameModules(db));
-const client = createBotClient(registry);
+const modules = createGameModules(db, config.games);
+const registry = createCommandRegistry(modules);
+const client = createBotClient(registry, modules);
 let shuttingDown = false;
 
 async function shutdown(exitCode: number) {
   if (shuttingDown) return;
   shuttingDown = true;
   try {
+    const results = await Promise.allSettled(modules.map(async (game) => game.dispose?.()));
+    for (const result of results) {
+      if (result.status === "rejected") { logger.error({ err: result.reason }, "Game shutdown failed"); exitCode = 1; }
+    }
     await client.destroy();
-    await db.$disconnect();
   } catch (error) {
     logger.error({ err: error }, "Shutdown failed");
     exitCode = 1;
+  } finally {
+    try { await db.$disconnect(); }
+    catch (error) { logger.error({ err: error }, "Database shutdown failed"); exitCode = 1; }
   }
   process.exitCode = exitCode;
 }

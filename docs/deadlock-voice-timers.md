@@ -1,6 +1,6 @@
 # Deadlock voice timers
 
-Status: agreed first-version design, confirmed by the user on October 22, 2026. Deadlock feature implementation has not started. The [game-module architecture](architecture.md) is now in place as its foundation.
+Status: implemented first-version design, agreed October 22, 2026. See the [command guide](deadlock-usage.md), [architecture](architecture.md), and [deployment prerequisites](deployment.md). Live Discord/Oracle voice playback still needs deployment validation.
 
 ## Purpose
 
@@ -69,10 +69,10 @@ Historical official evidence supports, but does not establish live behavior as o
 
 ## Repository feasibility and deployment prerequisites
 
-The shared command registry can host a new `src/games/deadlock/` module registered in `src/games/index.ts`. Keep Deadlock commands, timing rules, objective settings, and voice/timer state within that module. Use a distinct `/deadlock` command root. The module declares the voice-state intent alongside its commands; the shared registry combines it with other games' intents. Shared Discord routing and infrastructure remain game-neutral.
+The `src/games/deadlock/` module is registered in `src/games/index.ts`. Deadlock commands, timing rules, objective settings, and voice/timer state live within that module under a distinct `/deadlock` command root. The module declares the voice-state intent alongside its commands; the shared registry combines it with other games' intents. Shared Discord routing and infrastructure remain game-neutral.
 
-Voice playback, objective settings, audio preparation, and active timer state remain new capabilities. Add game-specific Prisma models for saved objectives; the existing `Match` and `MatchPlayer` tables belong to Overwatch. Shared SQLite infrastructure can retain settings, while active-match recovery is unnecessary for the agreed first version.
+The `DeadlockSchedule` Prisma model stores each server's validated schedule and revision in shared SQLite infrastructure. The existing `Match` and `MatchPlayer` tables belong to Overwatch. Active timers remain in memory.
 
-The project and CI now target Node 24.22.1 or a newer Node 24 patch, which exceeds the checked voice library release 0.19.2's Node 22.12 minimum. The library has not been added yet; recheck its current stable release when implementing voice. Production still needs channel access, Connect/Speak permissions, a DAVE-capable voice library, speech tooling, and working UDP connectivity. The actual VM runtime, architecture, and voice connectivity remain unverified. Follow [deployment and upgrading](deployment.md), then validate join, playback, and leave before rolling out timers.
+The project and CI target Node 24.22.1 or a newer Node 24 patch. The installed `@discordjs/voice` 0.19.2 includes its supported DAVE implementation. Speech uses eSpeak NG and FFmpeg to cache Ogg Opus, so playback needs no extra JavaScript Opus encoder. Production needs channel access, Connect/Speak permissions, the speech executables, a writable audio directory, and working UDP connectivity. Local synthesis and Opus demuxing are verified; actual VM runtime, architecture, and voice connectivity remain unverified. Follow [deployment and upgrading](deployment.md), then validate join, playback, and leave.
 
 References: [voice connections](https://discordjs.guide/voice/voice-connections), [release package requirements](https://github.com/discordjs/discord.js/blob/%40discordjs%2Fvoice%400.19.2/packages/voice/package.json), [Discord voice protocol](https://docs.discord.com/developers/topics/voice-connections).

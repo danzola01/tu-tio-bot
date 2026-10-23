@@ -10,7 +10,7 @@ describe("Overwatch module through the bot registry", () => {
   it("retains all six public command names", () => {
     const registry = createCommandRegistry(createGameModules(testDb));
     expect(registry.definitions.map((definition) => definition.name))
-      .toEqual(["match", "stats", "leaderboard", "undo", "insights", "session"]);
+      .toEqual(expect.arrayContaining(["match", "stats", "leaderboard", "undo", "insights", "session"]));
   });
 
   it("records a squad match and undoes it using the module's bound dependencies", async () => {
