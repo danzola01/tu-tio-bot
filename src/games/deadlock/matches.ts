@@ -10,6 +10,7 @@ interface ActiveMatch {
   initialTime: number;
   abort: AbortController;
   voice: VoiceSession | undefined;
+  joinedTarget: boolean;
   run: ReminderRun | undefined;
   timer: ReturnType<typeof setTimeout> | undefined;
   phase: "starting" | "running" | "preview";
@@ -24,7 +25,7 @@ export class DeadlockMatches {
   private reserve(target: VoiceTarget, seconds: number, phase: ActiveMatch["phase"], notify: ActiveMatch["notify"] = async () => {}) {
     if (this.matches.has(target.guildId)) throw new DeadlockError("A Deadlock timer is already active. Stop it first.");
     if (!Number.isFinite(seconds) || seconds < 0) throw new DeadlockError("Match time must be nonnegative");
-    const match: ActiveMatch = { target, requestedAt: this.now(), initialTime: seconds, abort: new AbortController(), voice: undefined, run: undefined, timer: undefined, phase, notify };
+    const match: ActiveMatch = { target, requestedAt: this.now(), initialTime: seconds, abort: new AbortController(), voice: undefined, joinedTarget: false, run: undefined, timer: undefined, phase, notify };
     this.matches.set(target.guildId, match);
     return match;
   }
@@ -67,11 +68,18 @@ export class DeadlockMatches {
     }
   }
 
+  observeBotChannel(guildId: string, channelId: string | null) {
+    const match = this.matches.get(guildId);
+    if (!match) return;
+    if (channelId === match.target.channelId) match.joinedTarget = true;
+    else if (match.joinedTarget || match.voice) this.stop(guildId);
+  }
+
   status(guildId: string) {
     const match = this.matches.get(guildId);
     if (!match) return null;
     return {
-      channelId: match.target.channelId, phase: match.phase, connected: match.voice !== undefined,
+      channelId: match.target.channelId, phase: match.phase,
       ...(match.run?.status() ?? { elapsed: match.initialTime + (this.now() - match.requestedAt) / 1000, paused: false, nextAt: null }),
     };
   }

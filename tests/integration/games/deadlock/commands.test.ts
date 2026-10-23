@@ -128,15 +128,22 @@ describe("Deadlock Discord commands", () => {
     await game.dispose!();
   });
 
-  it.each(["start", "preview"])("ignores a prior leave acknowledgement while a new %s prepares audio", async (action) => {
+  it.each([
+    { action: "start", phase: "preparing" }, { action: "preview", phase: "preparing" },
+    { action: "start", phase: "connecting" }, { action: "preview", phase: "connecting" },
+  ])("handles bot departures during $action while $phase", async ({ action, phase }) => {
     let block = false;
+    let closed = 0;
     let preparing = () => {};
     let release = () => {};
     const entered = new Promise<void>((resolve) => { preparing = resolve; });
     const pending = new Promise<void>((resolve) => { release = resolve; });
     const game = createDeadlockModule(testDb, {
-      speech: { prepare: async (text) => { if (block) { preparing(); await pending; } return { text, path: "/audio.ogg" }; } },
-      voice: { connect: async () => ({ play: async () => {}, cancel() {}, close() {} }) },
+      speech: { prepare: async (text) => { if (block && phase === "preparing") { preparing(); await pending; } return { text, path: "/audio.ogg" }; } },
+      voice: { connect: async () => {
+        if (block && phase === "connecting") { preparing(); await pending; }
+        return { play: async () => {}, cancel() {}, close() { closed++; } };
+      } },
     });
     const client = Object.assign(new EventEmitter(), { user: { id: "bot" } }) as unknown as Client;
     game.attach!(client);
@@ -153,10 +160,13 @@ describe("Deadlock Discord commands", () => {
     const next = call(action, { objective: "sinners" });
     const starting = game.commands[0]!.execute(next.interaction);
     await entered;
-    client.emit(Events.VoiceStateUpdate, { guild, id: "bot", channelId: "voice" } as unknown as VoiceState, { guild, id: "bot", channelId: null } as unknown as VoiceState);
+    const botState = (channelId: string | null) => ({ guild, id: "bot", channelId }) as unknown as VoiceState;
+    if (phase === "connecting") client.emit(Events.VoiceStateUpdate, botState(null), botState("voice"));
+    client.emit(Events.VoiceStateUpdate, botState("voice"), botState(phase === "connecting" ? "other-channel" : null));
     release();
     await starting;
-    expect(next.editReply).toHaveBeenCalledWith(expect.stringContaining(action === "preview" ? "Preview ended" : "Running"));
+    expect(next.editReply).toHaveBeenCalledWith(expect.stringContaining(phase === "connecting" ? "cancelled" : action === "preview" ? "Preview ended" : "Running"));
+    if (phase === "connecting") expect(closed).toBe(2);
     await game.dispose!();
   });
 });

@@ -28,10 +28,7 @@ export function createDeadlockModule(db: DbClient, options: DeadlockOptions = {}
       const onVoiceState = (before: VoiceState, after: VoiceState) => {
         const state = matches.status(after.guild.id);
         if (!state) return;
-        if (after.id === client.user?.id && state.connected && after.channelId !== state.channelId) {
-          matches.stop(after.guild.id);
-          return;
-        }
+        if (after.id === client.user?.id) matches.observeBotChannel(after.guild.id, after.channelId);
         if (before.channelId !== state.channelId && after.channelId !== state.channelId) return;
         const channel = after.guild.channels.cache.get(state.channelId);
         if (!channel?.isVoiceBased() || ![...channel.members.values()].some((member) => !member.user.bot)) matches.stop(after.guild.id);
