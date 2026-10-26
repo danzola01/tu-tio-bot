@@ -1,15 +1,18 @@
-import { describe, expect, it } from "vitest";
-import { createAudioResource, StreamType } from "@discordjs/voice";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { BundledSounds } from "../../../../src/games/deadlock/sounds.js";
+import { createSoundResource } from "../../../../src/games/deadlock/voice.js";
+
+afterEach(() => vi.unstubAllEnvs());
 
 describe("bundled Deadlock sounds", () => {
   it("prepares distinct playable beeps and dings without speech or conversion tools", async () => {
+    vi.stubEnv("PATH", "/no-external-audio-tools");
     const sounds = new BundledSounds();
     const beep = await sounds.prepare("beep");
     const ding = await sounds.prepare("ding");
     expect(beep.path).not.toBe(ding.path);
     for (const clip of [beep, ding]) {
-      const resource = createAudioResource(clip.path, { inputType: StreamType.OggOpus });
+      const resource = createSoundResource(clip);
       let packets = 0;
       for await (const _packet of resource.playStream) packets++;
       expect(packets).toBeGreaterThan(0);

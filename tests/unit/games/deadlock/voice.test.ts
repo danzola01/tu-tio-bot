@@ -4,7 +4,10 @@ import { AudioPlayerStatus, VoiceConnectionStatus } from "@discordjs/voice";
 import { DiscordVoiceTransport } from "../../../../src/games/deadlock/voice.js";
 import type { VoiceTarget } from "../../../../src/games/deadlock/types.js";
 
-const sdk = vi.hoisted(() => ({ join: vi.fn(), player: vi.fn(), resource: vi.fn(), ready: vi.fn() }));
+const sdk = vi.hoisted(() => ({ join: vi.fn(), player: vi.fn(), resource: vi.fn(), ready: vi.fn(), stream: vi.fn() }));
+vi.mock("node:fs", async (original) => ({
+  ...await original<typeof import("node:fs")>(), createReadStream: sdk.stream,
+}));
 vi.mock("@discordjs/voice", async (original) => ({
   ...await original<typeof import("@discordjs/voice")>(),
   joinVoiceChannel: sdk.join, createAudioPlayer: sdk.player, createAudioResource: sdk.resource, entersState: sdk.ready,
@@ -23,7 +26,8 @@ function discord() {
     destroy: vi.fn(),
   });
   sdk.join.mockReturnValue(connection); sdk.player.mockReturnValue(player);
-  sdk.resource.mockImplementation((path: string) => ({ path })); sdk.ready.mockResolvedValue(connection);
+  sdk.stream.mockImplementation((path: string) => ({ path }));
+  sdk.resource.mockImplementation((input: { path: string }) => ({ path: input.path })); sdk.ready.mockResolvedValue(connection);
   return { player, connection, played };
 }
 

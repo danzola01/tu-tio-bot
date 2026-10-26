@@ -21,6 +21,12 @@ The second standards round's overlapping-warning case was subsequently reproduce
 
 The full check passed typechecking, compilation, **85 tests**, and a full dependency audit with **zero vulnerabilities**. The final overlap fix then passed all **19 affected clock, voice, and match tests**, including one additional regression, plus typechecking and compilation. The bundled asset probe read 9 beep and 36 ding Opus packets without external audio tools. Compiled asset resolution was also checked from outside the checkout directory.
 
-Live Discord/Oracle join, sound, and leave validation remains a deployment check. Nothing was pushed or deployed.
+Live Discord/Oracle join, sound, and leave validation remains a deployment check. At the time of this review nothing had been pushed or deployed.
 
 Findings: Standards **2 P2**, both addressed; Spec **1 P2**, addressed. No unaddressed findings on either axis.
+
+## First CI failure and correction
+
+The first pushed [deployment run](https://github.com/danzola01/tu-tio-bot/actions/runs/40375180841) passed 85 tests but failed the sound integration test with `FFmpeg/avconv not found!`; Oracle deployment was skipped. Local FFmpeg availability had masked the dependency: the SDK treats string filenames as arbitrary input even when Ogg Opus is specified. See the [pinned SDK source](https://github.com/discordjs/discord.js/blob/%40discordjs%2Fvoice%400.19.2/packages/voice/src/audio/AudioResource.ts).
+
+The failure was reproduced with external tools removed from PATH. Playback and the probe now share a resource factory that passes a file stream with explicit Ogg Opus type. The integration regression also removes external tools from PATH and uses that production factory. The reproduction then passed (9 beep and 36 ding packets), as did all 86 tests, typechecking, compilation, and the dependency audit with zero findings.

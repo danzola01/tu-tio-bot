@@ -1,4 +1,5 @@
 import { DeadlockError } from "./errors.js";
+import { createReadStream } from "node:fs";
 import {
   AudioPlayerStatus, NoSubscriberBehavior, StreamType, VoiceConnectionStatus,
   createAudioPlayer, createAudioResource, entersState, joinVoiceChannel,
@@ -10,6 +11,11 @@ interface Announcement {
   expiresAt: number;
   resolve(): void;
   reject(error: Error): void;
+}
+
+export function createSoundResource(clip: AudioClip) {
+  // String filenames override inputType to Arbitrary in the SDK and require FFmpeg.
+  return createAudioResource(createReadStream(clip.path), { inputType: StreamType.OggOpus });
 }
 
 export class DiscordVoiceTransport implements VoiceTransport {
@@ -57,7 +63,7 @@ export class DiscordVoiceTransport implements VoiceTransport {
       if (!clip) { current.resolve(); current = undefined; pump(); return; }
       try {
         busy = true;
-        player.play(createAudioResource(clip.path, { inputType: StreamType.OggOpus }));
+        player.play(createSoundResource(clip));
       } catch { fail("Voice playback failed."); }
     };
     player.on(AudioPlayerStatus.Idle, () => { busy = false; pump(); });

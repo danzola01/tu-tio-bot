@@ -59,6 +59,8 @@ This is an explicit in-process catalog, without dynamic plugin loading. Modules 
 
 The `SoundLibrary` port resolves a beep or ding to an audio clip. `BundledSounds` checks readable, nonempty assets from `assets/deadlock/`, which use Ogg Opus and require no runtime conversion, synthesis, or writable cache. `VoiceTransport` and `VoiceSession` isolate Discord joining, DAVE-enabled playback, cancellation, and leaving. Simultaneous sounds coalesce to a single cue, with a due ding taking precedence over beeps. Pending playback remains bounded; stale queued sounds and overdue countdown ticks are skipped.
 
+Playback, the deployment probe, and audio integration tests share `createSoundResource`. It opens a file stream before declaring Ogg Opus input. Passing the filename directly to the voice SDK instead forces arbitrary-input conversion through FFmpeg, overriding the declared format. The audio regression test removes external tools from PATH to catch that accidental dependency.
+
 The clock attaches an absolute monotonic expiry to every sound. Countdown ticks expire one second after their scheduled time; other cues expire after two seconds. The match manager passes that expiry to voice playback, which checks it immediately before each clip starts. Queueing never extends a cue's lifetime. Overlapping beeps retain the stricter expiry; a selected ding retains its own expiry.
 
 Objective callout settings contain independent due-ding, advance-beep, and countdown controls for first and recurring reminders. The settings reader accepts the former speech JSON format, discards retired text, and sets countdowns off while retaining timing and enablement. Subsequent saves persist the sound format; no new SQL migration is required.

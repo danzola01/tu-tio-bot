@@ -1,11 +1,11 @@
-import { createAudioResource, StreamType } from "@discordjs/voice";
 import { BundledSounds } from "../src/games/deadlock/sounds.js";
+import { createSoundResource } from "../src/games/deadlock/voice.js";
 
 try {
   const sounds = new BundledSounds();
   for (const sound of ["beep", "ding"] as const) {
     const clip = await sounds.prepare(sound);
-    const resource = createAudioResource(clip.path, { inputType: StreamType.OggOpus });
+    const resource = createSoundResource(clip);
     let packets = 0;
     for await (const _packet of resource.playStream) packets++;
     if (!packets) throw new Error(`${sound} contained no Opus packets`);
