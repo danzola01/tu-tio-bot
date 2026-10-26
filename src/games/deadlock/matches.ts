@@ -132,7 +132,7 @@ export class DeadlockMatches {
     match.timer = setTimeout(() => {
       if (!this.current(match) || !match.run || !match.voice) return;
       for (const callout of match.run.takeDue()) {
-        void match.voice.play(callout.clips).catch((error: unknown) => {
+        void match.voice.play(callout.clips, callout.expiresAt).catch((error: unknown) => {
           logger.error({ err: error }, "Deadlock playback failed");
           this.fail(match, "Voice playback failed.");
         });

@@ -7,7 +7,7 @@ import type { AudioClip, VoiceSession, VoiceTarget, VoiceTransport } from "./typ
 
 interface Announcement {
   clips: AudioClip[];
-  created: number;
+  expiresAt: number;
   resolve(): void;
   reject(error: Error): void;
 }
@@ -47,9 +47,10 @@ export class DiscordVoiceTransport implements VoiceTransport {
     const abort = () => close();
     const pump = () => {
       if (closed || busy) return;
+      if (current && performance.now() >= current.expiresAt) { current.resolve(); current = undefined; }
       if (!current) {
         current = queue.shift();
-        while (current && performance.now() - current.created > 2000) { current.resolve(); current = queue.shift(); }
+        while (current && performance.now() >= current.expiresAt) { current.resolve(); current = queue.shift(); }
       }
       if (!current) return;
       const clip = current.clips.shift();
@@ -85,10 +86,10 @@ export class DiscordVoiceTransport implements VoiceTransport {
     }
 
     return {
-      play: (clips) => new Promise<void>((resolve, reject) => {
+      play: (clips, expiresAt = performance.now() + 2000) => new Promise<void>((resolve, reject) => {
         if (closed) { reject(new Error("Voice connection is closed")); return; }
         if (connection.state.status !== VoiceConnectionStatus.Ready) { resolve(); return; }
-        queue.push({ clips: [...clips], created: performance.now(), resolve, reject });
+        queue.push({ clips: [...clips], expiresAt, resolve, reject });
         if (queue.length > 2) queue.shift()?.resolve();
         pump();
       }),

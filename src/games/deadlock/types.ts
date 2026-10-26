@@ -38,6 +38,7 @@ export interface PreparedObjective {
 export interface Callout {
   at: number;
   clips: readonly AudioClip[];
+  expiresAt: number;
 }
 import type { DiscordGatewayAdapterCreator } from "@discordjs/voice";
 
@@ -49,7 +50,7 @@ export interface VoiceTarget {
 }
 
 export interface VoiceSession {
-  play(clips: readonly AudioClip[]): Promise<void>;
+  play(clips: readonly AudioClip[], expiresAt?: number): Promise<void>;
   cancel(): void;
   close(): void;
 }

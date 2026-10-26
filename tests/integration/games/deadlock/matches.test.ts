@@ -13,14 +13,16 @@ describe("Deadlock match controls", () => {
 
   it("runs a saved snapshot, shares clock controls, replays after rewind, and leaves on stop", async () => {
     const heard: string[][] = [];
+    const expiries: (number | undefined)[] = [];
     let closed = false;
-    const voice: VoiceTransport = { connect: async () => ({ play: async (clips) => { heard.push(clips.map((clip) => clip.sound)); }, cancel() {}, close() { closed = true; } }) };
+    const voice: VoiceTransport = { connect: async () => ({ play: async (clips, expiresAt) => { heard.push(clips.map((clip) => clip.sound)); expiries.push(expiresAt); }, cancel() {}, close() { closed = true; } }) };
     const saved = settings();
     const matches = new DeadlockMatches(saved, voice);
     await matches.start(target);
     await expect(matches.start(target)).rejects.toThrow("already");
     await vi.advanceTimersByTimeAsync(90_000);
     expect(heard).toEqual([["beep"]]);
+    expect(expiries).toEqual([92_000]);
     const first = (await saved.list("server"))[0]!;
     await saved.save("server", { ...first, firstAt: 180 });
     await vi.advanceTimersByTimeAsync(30_000);

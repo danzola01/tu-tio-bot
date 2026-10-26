@@ -19,7 +19,7 @@ Join a regular Discord voice channel and run `/deadlock start` when the match cl
 
 Clock controls, inspection, and previews are available to server members. Only one timer or preview runs per server. Starting requires being in a voice channel; the bot needs View Channel, Connect, and Speak. Stage channels are not supported.
 
-Forward sync skips everything up to the new time, without replaying missed callouts. Backward sync re-arms callouts strictly after the new time, including previously played ones. Rewinding from 2:10 to 1:30 therefore allows the 2:00 callout to speak again. A callout exactly at the sync time is skipped. Long event-loop or playback delays discard stale reminders instead of building a backlog.
+Forward sync skips everything up to the new time, without replaying missed callouts. Backward sync re-arms callouts strictly after the new time, including previously played ones. Rewinding from 2:10 to 1:30 therefore allows the 2:00 ding to play again. A callout exactly at the sync time is skipped. Long event-loop or playback delays discard stale reminders instead of building a backlog.
 
 The bot leaves when no humans remain, when moved/kicked, or after a permanent voice failure. A restart loses the active clock; use `start time:...` to recover. Saved settings survive. Brief voice reconnects keep the clock moving and skip announcements that cannot be played.
 

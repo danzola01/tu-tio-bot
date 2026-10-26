@@ -89,4 +89,24 @@ describe("Discord voice playback adapter", () => {
     expect(played).toEqual(["first.ogg", "new.ogg"]);
     voice.close();
   });
+
+  it("drops a countdown that expires behind another sound before playing the due ding", async () => {
+    vi.useFakeTimers();
+    try {
+      const { player, played } = discord();
+      const voice = await new DiscordVoiceTransport().connect(target, vi.fn(), new AbortController().signal);
+      await vi.advanceTimersByTimeAsync(119_800);
+      const earlier = voice.play([{ sound: "ding", path: "earlier-ding.ogg" }], 120_000);
+      const countdown = voice.play([{ sound: "beep", path: "countdown.ogg" }], 120_000);
+      await vi.advanceTimersByTimeAsync(700);
+      player.emit(AudioPlayerStatus.Idle);
+      expect(played).toEqual(["earlier-ding.ogg"]);
+      await Promise.all([earlier, countdown]);
+      const due = voice.play([{ sound: "ding", path: "due.ogg" }], 122_000);
+      player.emit(AudioPlayerStatus.Idle);
+      await due;
+      expect(played).toEqual(["earlier-ding.ogg", "due.ogg"]);
+      voice.close();
+    } finally { vi.useRealTimers(); }
+  });
 });

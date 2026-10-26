@@ -23,12 +23,12 @@ describe("Deadlock match clock", () => {
     small.first.warning = { sound: "beep", path: "beep.ogg" };
     small.first.due = { sound: "ding", path: "ding.ogg" };
     const run = new ReminderRun([small], 0, () => now);
-    const heard: [number, string][] = [];
+    const heard: [number, string, number][] = [];
     for (const second of [90, 115, 116, 117, 118, 119, 120]) {
       now = second * 1000;
-      for (const event of run.takeDue()) heard.push([event.at, event.clips[0]!.sound]);
+      for (const event of run.takeDue()) heard.push([event.at, event.clips[0]!.sound, event.expiresAt]);
     }
-    expect(heard).toEqual([[90, "beep"], [115, "beep"], [116, "beep"], [117, "beep"], [118, "beep"], [119, "beep"], [120, "ding"]]);
+    expect(heard).toEqual([[90, "beep", 92000], [115, "beep", 116000], [116, "beep", 117000], [117, "beep", 118000], [118, "beep", 119000], [119, "beep", 120000], [120, "ding", 122000]]);
   });
   it("announces a camp at 1:30 and 2:00 once each", () => {
     let now = 0;
@@ -36,10 +36,10 @@ describe("Deadlock match clock", () => {
     const run = new ReminderRun([small], 0, () => now);
     expect(run.status().nextAt).toBe(90);
     now = 90_000;
-    expect(run.takeDue()).toEqual([{ at: 90, clips: [small.first.warning] }]);
-    expect(run.takeDue()).toEqual([]);
+    expect(run.takeDue()).toMatchObject([{ at: 90, clips: [small.first.warning] }]);
+    expect(run.takeDue()).toMatchObject([]);
     now = 120_000;
-    expect(run.takeDue()).toEqual([{ at: 120, clips: [small.first.due] }]);
+    expect(run.takeDue()).toMatchObject([{ at: 120, clips: [small.first.due] }]);
     expect(run.status().nextAt).toBeNull();
   });
 
@@ -51,18 +51,18 @@ describe("Deadlock match clock", () => {
     run.pause();
     now = 200_000;
     expect(run.status()).toMatchObject({ elapsed: 80, paused: true, nextAt: null });
-    expect(run.takeDue()).toEqual([]);
+    expect(run.takeDue()).toMatchObject([]);
     run.resume();
     now = 210_000;
-    expect(run.takeDue()).toEqual([{ at: 90, clips: [small.first.warning] }]);
+    expect(run.takeDue()).toMatchObject([{ at: 90, clips: [small.first.warning] }]);
     run.sync(150);
-    expect(run.takeDue()).toEqual([]);
+    expect(run.takeDue()).toMatchObject([]);
     run.sync(90);
     now += 30_000;
-    expect(run.takeDue()).toEqual([{ at: 120, clips: [small.first.due] }]);
+    expect(run.takeDue()).toMatchObject([{ at: 120, clips: [small.first.due] }]);
     run.sync(90);
     now += 30_000;
-    expect(run.takeDue()).toEqual([{ at: 120, clips: [small.first.due] }]);
+    expect(run.takeDue()).toMatchObject([{ at: 120, clips: [small.first.due] }]);
   });
 
   it("combines simultaneous objectives and repeats checks without playing a stalled backlog", () => {
@@ -74,11 +74,11 @@ describe("Deadlock match clock", () => {
     const large = camp("Large camps", 480);
     const run = new ReminderRun([small, sinners, large], 0, () => now);
     now = 210_000;
-    expect(run.takeDue()).toEqual([{ at: 210, clips: [small.recurring.due] }]);
+    expect(run.takeDue()).toMatchObject([{ at: 210, clips: [small.recurring.due] }]);
     now = 480_000;
-    expect(run.takeDue()).toEqual([{ at: 480, clips: [small.recurring.due] }]);
+    expect(run.takeDue()).toMatchObject([{ at: 480, clips: [small.recurring.due] }]);
     now = 780_000;
-    expect(run.takeDue()).toEqual([{ at: 780, clips: [sinners.recurring.due] }]);
+    expect(run.takeDue()).toMatchObject([{ at: 780, clips: [sinners.recurring.due] }]);
   });
 
   it("supports recurring warnings independently of first and recurring due callouts", () => {
@@ -91,9 +91,9 @@ describe("Deadlock match clock", () => {
     const run = new ReminderRun([small], 0, () => now);
     expect(run.status().nextAt).toBe(190);
     now = 190_000;
-    expect(run.takeDue()).toEqual([{ at: 190, clips: [small.recurring.warning] }]);
+    expect(run.takeDue()).toMatchObject([{ at: 190, clips: [small.recurring.warning] }]);
     now = 210_000;
-    expect(run.takeDue()).toEqual([]);
+    expect(run.takeDue()).toMatchObject([]);
     expect(run.status().nextAt).toBe(280);
   });
 
@@ -108,12 +108,12 @@ describe("Deadlock match clock", () => {
     expect(run.status().nextAt).toBe(207);
     run.sync(206);
     now = 1000;
-    expect(run.takeDue()).toEqual([{ at: 207, clips: [small.recurring.countdown] }]);
+    expect(run.takeDue()).toMatchObject([{ at: 207, clips: [small.recurring.countdown] }]);
     run.sync(205);
     now = 3000;
-    expect(run.takeDue()).toEqual([{ at: 207, clips: [small.recurring.countdown] }]);
+    expect(run.takeDue()).toMatchObject([{ at: 207, clips: [small.recurring.countdown] }]);
     run.sync(300);
-    expect(run.takeDue()).toEqual([]);
+    expect(run.takeDue()).toMatchObject([]);
     expect(run.status().nextAt).toBe(387);
   });
 
@@ -126,10 +126,10 @@ describe("Deadlock match clock", () => {
     const other = camp("Another reminder", 115);
     const run = new ReminderRun([first, other], 0, () => now);
     now = 115_000;
-    expect(run.takeDue()).toEqual([{ at: 115, clips: [other.first.due] }]);
+    expect(run.takeDue()).toMatchObject([{ at: 115, clips: [other.first.due] }]);
     now = 118_500;
-    expect(run.takeDue()).toEqual([{ at: 118, clips: [first.first.countdown] }]);
+    expect(run.takeDue()).toMatchObject([{ at: 118, clips: [first.first.countdown] }]);
     now = 119_000;
-    expect(run.takeDue()).toEqual([{ at: 119, clips: [first.first.countdown] }]);
+    expect(run.takeDue()).toMatchObject([{ at: 119, clips: [first.first.countdown] }]);
   });
 });

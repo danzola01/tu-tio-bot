@@ -72,18 +72,23 @@ export class ReminderRun {
   takeDue(): Callout[] {
     if (this.paused) return [];
     const elapsed = this.elapsed();
-    const groups = new Map<number, AudioClip[]>();
+    const groups = new Map<number, { clip: AudioClip; expiresAt: number }[]>();
     // Discard stale announcements after a stalled event loop or interrupted connection.
     for (const event of this.events(Math.max(this.last, elapsed - 2))) {
       while (event.at <= elapsed) {
-        if (!event.countdown || elapsed - event.at < 1) groups.set(event.at, [...(groups.get(event.at) ?? []), event.clip]);
+        if (!event.countdown || elapsed - event.at < 1) {
+          const expiresAt = this.anchor + (event.at - this.elapsedAtAnchor) * 1000 + (event.countdown ? 1000 : 2000);
+          groups.set(event.at, [...(groups.get(event.at) ?? []), { clip: event.clip, expiresAt }]);
+        }
         if (event.interval === null) break;
         event.at += event.interval;
       }
     }
     this.last = elapsed;
-    return [...groups].sort(([a], [b]) => a - b).map(([at, clips]) => ({
-      at, clips: [clips.find((clip) => clip.sound === "ding") ?? clips[0]!],
-    }));
+    return [...groups].sort(([a], [b]) => a - b).map(([at, sounds]) => {
+      const selected = sounds.find(({ clip }) => clip.sound === "ding")
+        ?? sounds.reduce((earliest, sound) => sound.expiresAt < earliest.expiresAt ? sound : earliest);
+      return { at, clips: [selected.clip], expiresAt: selected.expiresAt };
+    });
   }
 }
