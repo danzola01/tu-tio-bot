@@ -28,11 +28,11 @@ A timed buff pickup at a bridge location in Deadlock, also called a "bridge buff
 A reminder to consider farming a camp, without asserting that the camp has respawned.
 
 **Reminder schedule**:
-The planned times, repeat intervals, advance warnings, and callout wording for objective reminders.
+The planned times, repeat intervals, advance beeps, countdowns, and due dings for objective reminders.
 
-**Voice callout**:
-A spoken reminder heard by players in a Discord voice channel.
-_Avoid_: Notification, ping
+**Sound reminder**:
+An audible beep or ding heard by players in a Discord voice channel.
+_Avoid_: Spoken announcement, voice callout
 
 **Scheduled reminder**:
 A reminder due at a predetermined match-clock time, independently of observed game events.
@@ -41,5 +41,11 @@ A reminder due at a predetermined match-clock time, independently of observed ga
 A scheduled reminder repeated at a predetermined interval.
 
 **Advance warning**:
-A voice callout before a scheduled reminder is due.
+A single beep before a scheduled reminder is due.
 
+
+**Countdown**:
+A sequence of one-second beeps immediately before a scheduled reminder is due.
+
+**Due ding**:
+The distinct sound marking a reminder’s scheduled match time, without asserting actual objective availability.

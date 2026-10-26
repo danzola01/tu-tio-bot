@@ -19,6 +19,4 @@ jobs:
           node-version-file: .node-version
           cache: npm
       - run: npm ci
-      - name: Install local speech tools
-        run: sudo apt-get update && sudo apt-get install -y espeak-ng ffmpeg
       - run: npm run check

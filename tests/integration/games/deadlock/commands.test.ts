@@ -20,7 +20,7 @@ function commandCall(subcommand: string, values: Record<string, string | boolean
 
 describe("Deadlock Discord commands", () => {
   it.each([{ id: "owner" }, { ownerId: "owner" }])("uses application or team ownership when no override is set: %j", async (owner) => {
-    const game = createDeadlockModule(testDb, { speech: { prepare: async (text) => ({ text, path: "/audio.ogg" }) } });
+    const game = createDeadlockModule(testDb, { sounds: { prepare: async (sound) => ({ sound, path: "/audio.ogg" }) } });
     const edit = commandCall("edit", { objective: "small-camps", enabled: false }, "owner", "objective");
     Object.assign(edit.interaction, { client: { application: { owner: null, fetch: async () => ({ owner }) } } });
     await game.commands[0]!.execute(edit.interaction);
@@ -29,7 +29,7 @@ describe("Deadlock Discord commands", () => {
   });
 
   it("restricts objective edits to the bot owner and exposes saved additions in the schedule", async () => {
-    const game = createDeadlockModule(testDb, { ownerId: "owner", speech: { prepare: async (text) => ({ text, path: "/audio.ogg" }) } });
+    const game = createDeadlockModule(testDb, { ownerId: "owner", sounds: { prepare: async (sound) => ({ sound, path: "/audio.ogg" }) } });
     const command = game.commands[0]!;
     expect(command.data.toJSON().name).toBe("deadlock");
     const denied = commandCall("add", { name: "Urn", first: "10:00" }, "friend", "objective");
@@ -44,29 +44,29 @@ describe("Deadlock Discord commands", () => {
     expect(message.embeds[0]!.toJSON().fields).toEqual(expect.arrayContaining([expect.objectContaining({ name: expect.stringContaining("Urn"), value: expect.stringContaining("10:00") })]));
   });
 
-  it("edits speech and warning preferences, shows them to friends, and removes objectives", async () => {
-    const game = createDeadlockModule(testDb, { ownerId: "owner", speech: { prepare: async (text) => ({ text, path: "/audio.ogg" }) } });
+  it("edits beep and countdown preferences, shows them to friends, and removes objectives", async () => {
+    const game = createDeadlockModule(testDb, { ownerId: "owner", sounds: { prepare: async (sound) => ({ sound, path: "/audio.ogg" }) } });
     const command = game.commands[0]!;
-    const edit = commandCall("edit", { objective: "small-camps", repeat: "off", warning: "off", "first-text": "Farm only when safe." }, "owner", "objective");
+    const edit = commandCall("edit", { objective: "small-camps", repeat: "2:00", warning: "off", countdown: "off", "repeat-countdown": "5", announce: false }, "owner", "objective");
     await command.execute(edit.interaction);
     expect(edit.editReply).toHaveBeenCalledWith(expect.stringContaining("next start"));
     const show = commandCall("show", { objective: "small-camps" }, "friend", "objective");
     await command.execute(show.interaction);
     const shown = show.editReply.mock.calls[0]![0] as { embeds: { toJSON(): { fields: { value: string }[] } }[] };
-    expect(shown.embeds[0]!.toJSON().fields).toEqual(expect.arrayContaining([expect.objectContaining({ value: "Farm only when safe." })]));
+    expect(shown.embeds[0]!.toJSON().fields).toEqual(expect.arrayContaining([expect.objectContaining({ value: expect.stringContaining("Countdown: off") }), expect.objectContaining({ value: expect.stringContaining("Countdown: 5s") })]));
     const remove = commandCall("remove", { objective: "small-camps" }, "owner", "objective");
     await command.execute(remove.interaction);
     expect(remove.editReply).toHaveBeenCalledWith(expect.stringContaining("next start"));
     const schedule = commandCall("schedule");
     await command.execute(schedule.interaction);
     const saved = schedule.editReply.mock.calls[0]![0] as { embeds: { toJSON(): { fields: { name: string }[] } }[] };
-    expect(saved.embeds[0]!.toJSON().fields.some((field) => field.name.includes("small-camps"))).toBe(false);
+    expect(saved.embeds[0]!.toJSON().fields.some((field) => field.name.includes("Small camps"))).toBe(false);
   });
 
   it("lets friends join their voice channel, share clock controls, and stop playback", async () => {
     let joined = "";
     let closed = false;
-    const game = createDeadlockModule(testDb, { ownerId: "owner", speech: { prepare: async (text) => ({ text, path: "/audio.ogg" }) }, voice: { connect: async (target) => {
+    const game = createDeadlockModule(testDb, { ownerId: "owner", sounds: { prepare: async (sound) => ({ sound, path: "/audio.ogg" }) }, voice: { connect: async (target) => {
       joined = target.channelId;
       return { play: async () => {}, cancel() {}, close() { closed = true; } };
     } } });
@@ -94,7 +94,7 @@ describe("Deadlock Discord commands", () => {
 
   it("stops when the voice channel empties and detaches its listener on shutdown", async () => {
     let closed = false;
-    const game = createDeadlockModule(testDb, { speech: { prepare: async (text) => ({ text, path: "/audio.ogg" }) }, voice: { connect: async () => ({ play: async () => {}, cancel() {}, close() { closed = true; } }) } });
+    const game = createDeadlockModule(testDb, { sounds: { prepare: async (sound) => ({ sound, path: "/audio.ogg" }) }, voice: { connect: async () => ({ play: async () => {}, cancel() {}, close() { closed = true; } }) } });
     const client = Object.assign(new EventEmitter(), { user: { id: "bot" } }) as unknown as Client;
     game.attach!(client);
     const members = new Map([["friend", { user: { bot: false } }], ["bot", { user: { bot: true } }]]);
@@ -139,7 +139,7 @@ describe("Deadlock Discord commands", () => {
     const entered = new Promise<void>((resolve) => { preparing = resolve; });
     const pending = new Promise<void>((resolve) => { release = resolve; });
     const game = createDeadlockModule(testDb, {
-      speech: { prepare: async (text) => { if (block && phase === "preparing") { preparing(); await pending; } return { text, path: "/audio.ogg" }; } },
+      sounds: { prepare: async (sound) => { if (block && phase === "preparing") { preparing(); await pending; } return { sound, path: "/audio.ogg" }; } },
       voice: { connect: async () => {
         if (block && phase === "connecting") { preparing(); await pending; }
         return { play: async () => {}, cancel() {}, close() { closed++; } };

@@ -1,10 +1,10 @@
 import { DeadlockError } from "./errors.js";
 import type { DbClient } from "../../infra/db.js";
-import { defaultObjectives, objectiveSchema, renderCallout } from "./objectives.js";
-import type { Objective, PreparedCallouts, PreparedObjective, Speech } from "./types.js";
+import { defaultObjectives, objectiveSchema } from "./objectives.js";
+import type { Objective, PreparedCallouts, PreparedObjective, SoundLibrary } from "./types.js";
 
 export class ObjectiveSettings {
-  constructor(private readonly db: DbClient, private readonly speech: Speech) {}
+  constructor(private readonly db: DbClient, private readonly sounds: SoundLibrary) {}
 
   private async read(guildId: string) {
     const row = await this.db.deadlockSchedule.upsert({
@@ -53,8 +53,9 @@ export class ObjectiveSettings {
     const result: PreparedObjective[] = [];
     for (const objective of objectives.filter((item) => item.enabled)) {
       const prepare = async (callout: Objective["first"]): Promise<PreparedCallouts> => ({
-        ...(callout.announce ? { due: await this.speech.prepare(renderCallout(callout.text, objective, null)) } : {}),
-        ...(callout.warningSeconds !== null ? { warning: await this.speech.prepare(renderCallout(callout.warningText, objective, callout.warningSeconds)) } : {}),
+        ...(callout.announce ? { due: await this.sounds.prepare("ding") } : {}),
+        ...(callout.warningSeconds !== null ? { warning: await this.sounds.prepare("beep") } : {}),
+        ...(callout.countdownSeconds !== null ? { countdown: await this.sounds.prepare("beep") } : {}),
       });
       result.push({ objective, first: await prepare(objective.first), recurring: objective.repeatEvery !== null ? await prepare(objective.recurring) : {} });
     }

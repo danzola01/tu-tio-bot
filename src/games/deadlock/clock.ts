@@ -37,13 +37,20 @@ export class ReminderRun {
     this.last = seconds;
   }
 
-  private events(after: number): { at: number; interval: number | null; clip: AudioClip }[] {
+  private events(after: number): { at: number; interval: number | null; clip: AudioClip; countdown?: boolean }[] {
     return this.schedule.filter((item) => item.objective.enabled).flatMap((item) => {
       const { firstAt, repeatEvery, first, recurring } = item.objective;
-      const events: { at: number; interval: number | null; clip: AudioClip }[] = [];
+      const events: { at: number; interval: number | null; clip: AudioClip; countdown?: boolean }[] = [];
+      const countdown = (at: number, seconds: number | null, clip: AudioClip | undefined, interval: number | null) => {
+        if (seconds !== null && clip) {
+          for (let lead = seconds; lead >= 1; lead--) events.push({ at: at - lead, interval, clip, countdown: true });
+        }
+      };
+      countdown(firstAt, first.countdownSeconds, item.first.countdown, null);
       if (item.first.warning && first.warningSeconds !== null) events.push({ at: firstAt - first.warningSeconds, interval: null, clip: item.first.warning });
       if (item.first.due && first.announce) events.push({ at: firstAt, interval: null, clip: item.first.due });
       if (repeatEvery !== null) {
+        countdown(firstAt + repeatEvery, recurring.countdownSeconds, item.recurring.countdown, repeatEvery);
         if (item.recurring.warning && recurring.warningSeconds !== null) events.push({ at: firstAt + repeatEvery - recurring.warningSeconds, interval: repeatEvery, clip: item.recurring.warning });
         if (item.recurring.due && recurring.announce) events.push({ at: firstAt + repeatEvery, interval: repeatEvery, clip: item.recurring.due });
       }
@@ -69,12 +76,14 @@ export class ReminderRun {
     // Discard stale announcements after a stalled event loop or interrupted connection.
     for (const event of this.events(Math.max(this.last, elapsed - 2))) {
       while (event.at <= elapsed) {
-        groups.set(event.at, [...(groups.get(event.at) ?? []), event.clip]);
+        if (!event.countdown || elapsed - event.at < 1) groups.set(event.at, [...(groups.get(event.at) ?? []), event.clip]);
         if (event.interval === null) break;
         event.at += event.interval;
       }
     }
     this.last = elapsed;
-    return [...groups].sort(([a], [b]) => a - b).map(([at, clips]) => ({ at, clips }));
+    return [...groups].sort(([a], [b]) => a - b).map(([at, clips]) => ({
+      at, clips: [clips.find((clip) => clip.sound === "ding") ?? clips[0]!],
+    }));
   }
 }

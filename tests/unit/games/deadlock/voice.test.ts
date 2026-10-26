@@ -31,7 +31,7 @@ describe("Discord voice playback adapter", () => {
   it("plays combined announcements in sequence and leaves when closed", async () => {
     const { player, connection, played } = discord();
     const voice = await new DiscordVoiceTransport().connect(target, vi.fn(), new AbortController().signal);
-    const batch = voice.play([{ text: "Large camps", path: "large.ogg" }, { text: "Sinners", path: "sinners.ogg" }]);
+    const batch = voice.play([{ sound: "beep", path: "large.ogg" }, { sound: "beep", path: "sinners.ogg" }]);
     expect(played).toEqual(["large.ogg"]);
     player.emit(AudioPlayerStatus.Idle);
     expect(played).toEqual(["large.ogg", "sinners.ogg"]);
@@ -77,13 +77,13 @@ describe("Discord voice playback adapter", () => {
   it("cancels both current and queued callouts without playing them after a clock correction", async () => {
     const { player, played } = discord();
     const voice = await new DiscordVoiceTransport().connect(target, vi.fn(), new AbortController().signal);
-    const current = voice.play([{ text: "First", path: "first.ogg" }]);
-    const queued = voice.play([{ text: "Queued", path: "queued.ogg" }]);
+    const current = voice.play([{ sound: "beep", path: "first.ogg" }]);
+    const queued = voice.play([{ sound: "beep", path: "queued.ogg" }]);
     voice.cancel();
     await Promise.all([current, queued]);
     player.emit(AudioPlayerStatus.Idle);
     expect(played).toEqual(["first.ogg"]);
-    const next = voice.play([{ text: "New", path: "new.ogg" }]);
+    const next = voice.play([{ sound: "beep", path: "new.ogg" }]);
     player.emit(AudioPlayerStatus.Idle);
     await next;
     expect(played).toEqual(["first.ogg", "new.ogg"]);

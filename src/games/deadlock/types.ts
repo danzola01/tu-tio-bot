@@ -1,8 +1,7 @@
 export interface CalloutSettings {
   announce: boolean;
   warningSeconds: number | null;
-  text: string;
-  warningText: string;
+  countdownSeconds: number | null;
 }
 
 export interface Objective {
@@ -16,17 +15,18 @@ export interface Objective {
 }
 
 export interface AudioClip {
-  text: string;
+  sound: "beep" | "ding";
   path: string;
 }
 
-export interface Speech {
-  prepare(text: string): Promise<AudioClip>;
+export interface SoundLibrary {
+  prepare(sound: AudioClip["sound"]): Promise<AudioClip>;
 }
 
 export interface PreparedCallouts {
   due?: AudioClip;
   warning?: AudioClip;
+  countdown?: AudioClip;
 }
 
 export interface PreparedObjective {

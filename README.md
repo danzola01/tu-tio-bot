@@ -1,12 +1,12 @@
 # Tu Tio Bot
 
-A Discord bot for our server, with independent Overwatch match tracking and Deadlock voice reminders.
+A Discord bot for our server, with independent Overwatch match tracking and Deadlock sound reminders.
 
 ## Requirements
 
 Use **Node 24.22.1 or a newer Node 24 patch**, with npm. The pinned version is in [.node-version](.node-version) and [.nvmrc](.nvmrc). This baseline includes the [October 21, 2026 Node security release](https://nodejs.org/en/blog/release/v24.22.1).
 
-Deadlock speech also needs **eSpeak NG** and **FFmpeg with libopus** on the bot's host. On Debian/Ubuntu: `sudo apt-get install espeak-ng ffmpeg`. Run `npm run check:audio` to verify synthesis, cache permissions, and Opus decoding locally.
+Deadlock uses bundled beep and ding sounds. No speech engine, FFmpeg, or writable audio cache is required on the bot host. Run `npm run check:audio` to verify both Opus assets locally.
 
 ## Setup
 
@@ -54,16 +54,16 @@ Existing command names and options are preserved:
 
 Map, hero, and member autocomplete remain available. Charts use the external QuickChart renderer.
 
-## Deadlock voice reminders
+## Deadlock sound reminders
 
-Join voice, then use `/deadlock start`. First spawns get a 30-second warning and a due callout. Small camps, bridge buffs, and Sinners also get recurring reminders. Anyone in the server can use the clock controls:
+Join voice, then use `/deadlock start`. First reminders get an advance beep 30 seconds before, countdown beeps for the final five seconds, and a distinct ding when due. All three are optional. Small camps, bridge buffs, and Sinners also get recurring reminders. Anyone in the server can use the clock controls:
 
 - `/deadlock start time:4:20` starts at the current game time.
 - `/deadlock pause`, `/deadlock resume`, `/deadlock sync time:1:30`, and `/deadlock status` control or inspect the clock.
 - `/deadlock stop` stops playback and leaves voice. The bot also leaves when no humans remain.
 - `/deadlock schedule` shows saved settings; `/deadlock preview objective:sinners` plays a sample while the timer is stopped.
 
-Only the bot owner can add, edit, or remove saved objectives. For example, `/deadlock objective edit objective:small-camps repeat:2:00 warning:15 repeat-warning:off`. Edits apply on the next start. See the [command and settings guide](docs/deadlock-usage.md) for every option and the default schedule. Camp and Sinner repeats say “check”; they do not detect actual respawns.
+Only the bot owner can add, edit, or remove saved objectives. For example, `/deadlock objective edit objective:small-camps warning:30 countdown:5 announce:true`. Edits apply on the next start. See the [command and settings guide](docs/deadlock-usage.md) for every option and the default schedule. Objective names are displayed only in Discord; no names are spoken. Repeated camp and Sinner sounds are farming reminders, not detected respawns.
 
 ## Development
 
@@ -73,11 +73,11 @@ npm run build           # Compile into dist/
 npm test                # Unit and isolated SQLite integration tests
 npm run test:coverage
 npm run check           # Typecheck, build, tests, and dependency audit
-npm run check:audio     # Real local synthesis and Opus check; no Discord connection
+npm run check:audio     # Bundled beep/ding Opus check; no Discord connection
 npm start               # Run the compiled bot
 ```
 
-Integration tests create and remove temporary SQLite databases, apply the real migration history, and never reset the configured development or production database. The speech integration test uses the installed eSpeak NG and FFmpeg executables. Generated Prisma Client, audio cache, build output, credentials, and database files are ignored by Git.
+Integration tests create and remove temporary SQLite databases, apply the real migration history, and never reset the configured development or production database. Audio integration tests read the bundled Ogg Opus sounds through the Discord playback pipeline. Generated Prisma Client, build output, credentials, and database files are ignored by Git.
 
 `npm run wipe:overwatch` permanently deletes all Overwatch match history in the configured database. The old `npm run wipe` remains an alias. Deadlock settings are unaffected.
 

@@ -1,10 +1,10 @@
-# Deadlock voice timers
+# Deadlock sound timers
 
-Status: implemented first-version design, agreed October 22, 2026. See the [command guide](deadlock-usage.md), [architecture](architecture.md), and [deployment prerequisites](deployment.md). Live Discord/Oracle voice playback still needs deployment validation.
+Status: implemented design, revised October 26, 2026 to replace spoken announcements with beeps and dings. See the [command guide](deadlock-usage.md), [architecture](architecture.md), and [deployment prerequisites](deployment.md). Live Discord/Oracle voice playback still needs deployment validation.
 
 ## Purpose
 
-Help three friends learning Deadlock remember objectives through short English voice callouts. A player manually starts the match clock in Discord. Objective names, timings, recurrence, advance warnings, and spoken wording can be changed through Discord as the game or the players' preferences change.
+Help three friends learning Deadlock remember objectives through short sound reminders. A player manually starts the match clock in Discord. Objective names, timings, recurrence, advance beeps, countdowns, and due dings can be changed through Discord as the game or the players' preferences change.
 
 ## Agreed scope
 
@@ -13,8 +13,8 @@ Help three friends learning Deadlock remember objectives through short English v
 - Use match-clock reminders without game-state, speech, or camp-clear detection.
 - Only the bot owner manages the saved schedule. Add, edit, disable, and remove objectives through Discord without deploying code or recording audio manually.
 - Save objective settings across bot restarts. Schedule edits affect the next start; an active match retains its original settings and callouts.
-- Begin with small camps, medium camps, large camps, bridge powerups ("bridge buffs"), and Sinner's Sacrifice ("Sinners"). Sinners must include recurring checks as well as the first-spawn announcement at 8:00.
-- A robotic local English voice is acceptable initially. Better voice quality is an early improvement priority. Changing the speech engine should leave objective settings and clock behavior intact.
+- Begin with small camps, medium camps, large camps, bridge powerups ("bridge buffs"), and Sinner's Sacrifice ("Sinners"). Sinners must include recurring checks as well as the first reminder at 8:00.
+- Use a short beep for advance warnings and countdowns, and a distinct bell-like ding at the scheduled time. Objective names remain display labels; the bot does not speak them.
 
 ## Editable objective settings
 
@@ -25,41 +25,41 @@ The agreed choices define editable initial defaults. Each objective supports:
 - Whether a first-time advance warning and due callout play, and how early the warning plays.
 - Whether reminders repeat and their interval. The first repeat is one interval after the first scheduled time.
 - Whether repeating reminders have advance warnings and due callouts, with a configurable warning lead time.
-- Spoken wording for the first-time and recurring callouts and their warnings. Defaults use the objective name and configured lead time; custom wording allows shorter or fuller announcements.
+- An independently optional countdown of 1–30 seconds for first and recurring reminders. It beeps once per second from T−N through T−1; the due ding replaces a beep at T.
 
-Warnings and due callouts can be toggled independently for first-time and recurring reminders. In particular, owners can turn recurring warnings on later without changing code. Changes to warning lead times must also be reflected in generated warning speech.
+Advance beeps, countdowns, and due dings can be toggled independently for first and recurring reminders. Owners can change their lead times and enable recurring countdowns without changing code. Warnings and countdowns must fit between match start and the first time, or within the repeat interval.
 
 ## Initial defaults
 
 These defaults were accepted as part of the design and can be edited in Discord:
 
-- **Small camps:** first at 2:00; "check camps" every 90 seconds afterward, starting at 3:30. This repeat interval follows the user's original example and is a reminder preference.
+- **Small camps:** first at 2:00; reminders every 90 seconds afterward, starting at 3:30. This repeat interval follows the user's original example and is a reminder preference.
 - **Medium camps:** first at 5:00; repeats initially disabled.
 - **Large camps:** first at 8:00; repeats initially disabled.
 - **Bridge buffs:** first at 5:00; repeat every five minutes, at 10:00, 15:00, and so on.
-- **Sinners:** first at 8:00; "check Sinners" every five minutes afterward, starting at 13:00.
+- **Sinners:** first at 8:00; reminders every five minutes afterward, starting at 13:00.
 
-First-time announcements have a 30-second advance warning and a due callout. Repeating reminders initially have only a due callout. Combine objectives due together into one announcement, including large camps and Sinners at 8:00. All these warning, repetition, and wording choices are editable.
+First reminders default to a 30-second advance beep, a five-second countdown, and a due ding. For a 2:00 objective, this means a beep at 1:30, one beep each at 1:55–1:59, and a ding at 2:00. Repeats default to a due ding only. All three parts are independently optional for both first and repeat reminders. Coalesce simultaneous beeps into one; a due ding takes priority over a beep at the same instant. New objectives use these defaults. Earlier saved speech schedules preserve their existing advance/due settings and start with countdowns off until explicitly enabled.
 
 ## Clock and voice behavior
 
 - Pause freezes the match clock and prevents scheduled callouts until resume.
 - Syncing forward skips callouts passed by the correction; never play a backlog.
-- Syncing backward re-arms future callouts, including ones already spoken. For example, the 2:00 callout fires again after rewinding to 1:30 and reaching 2:00 again.
+- Syncing backward re-arms future callouts, including ones already played. For example, the 2:00 callout fires again after rewinding to 1:30 and reaching 2:00 again.
 - Stop ends playback and leaves voice. Also stop and leave when no human participants remain in the channel.
 - A permanent voice-connection failure or bot restart ends the active timer. Players manually start again at the current match time. Automatic recovery and concurrent matches within the same server are outside the first version.
 
-## Audio preparation
+## Audio assets
 
-Use local speech synthesis and cache generated callouts when their wording changes. Timing-only edits can reuse audio unless they change words in the warning. Prepare audio before an edited schedule becomes available for a new match; a preparation failure should leave the previous working schedule available and explain the failure in Discord. Provide a way to preview an objective's callouts.
+Use the checked-in `assets/deadlock/beep.ogg` and `ding.ogg` sounds. Both are stereo 48 kHz Ogg Opus and shorter than one second. The host requires no speech tooling, FFmpeg, audio cache, or synthesis service. The development-only generator uses FFmpeg to regenerate the original tones; it is not part of deployment or playback.
 
-Prefer [eSpeak NG](https://github.com/espeak-ng/espeak-ng) for the initial robotic voice. [Piper](https://github.com/OHF-Voice/piper1-gpl) is a candidate for the early natural-voice improvement. Both can generate WAV on headless Linux without a recurring speech-service fee. VM resources and pronunciation still need validation. Keep synthesis separate from clock and reminder scheduling so the voice can be replaced easily.
+Validate enabled sounds before committing schedule edits. A missing asset leaves the prior saved schedule unchanged and explains the failure in Discord. Preview supports a due ding, advance beep, or one countdown beep sample. Timing edits reuse the same assets. Countdown ticks older than one second are dropped after stalls; other missed reminders retain the existing two-second grace, preventing a backlog. No beep plays at the due instant when the ding is enabled.
 
 ## Timing evidence and accuracy boundary
 
 The proposed first-spawn values are community-reported current schedules with moderate confidence; they are not a complete current timetable verified from Valve. References: [Deadlock Labs](https://deadlocklabs.gg/tools/map/), [SenseOS camp guide](https://senseos.gg/guides/deadlock/jungle-camps/), [powerup wiki](https://deadlock.wiki/Powerups).
 
-Camp and Sinner respawns depend on clearing or destroying the objective. Without those inputs, repeating reminders cannot establish actual availability. Recurring camp and Sinner callouts therefore say "check" rather than promising a respawn. For example, 8:00, 13:00, and 18:00 are proposed Sinner reminder times, not guaranteed spawn times. The [Sinner community reference](https://deadlock.wiki/Sinner) reports a five-minute respawn after destruction or full clearance at hybrid locations.
+Camp and Sinner respawns depend on clearing or destroying the objective. Without those inputs, repeating reminders cannot establish actual availability. Recurring camp and Sinner sounds are approximate farming reminders and do not establish a respawn. For example, 8:00, 13:00, and 18:00 are proposed Sinner reminder times, not guaranteed spawn times. The [Sinner community reference](https://deadlock.wiki/Sinner) reports a five-minute respawn after destruction or full clearance at hybrid locations.
 
 Historical official evidence supports, but does not establish live behavior as of October 22, 2026:
 
@@ -73,6 +73,6 @@ The `src/games/deadlock/` module is registered in `src/games/index.ts`. Deadlock
 
 The `DeadlockSchedule` Prisma model stores each server's validated schedule and revision in shared SQLite infrastructure. The existing `Match` and `MatchPlayer` tables belong to Overwatch. Active timers remain in memory.
 
-The project and CI target Node 24.22.1 or a newer Node 24 patch. The installed `@discordjs/voice` 0.19.2 includes its supported DAVE implementation. Speech uses eSpeak NG and FFmpeg to cache Ogg Opus, so playback needs no extra JavaScript Opus encoder. Production needs channel access, Connect/Speak permissions, the speech executables, a writable audio directory, and working UDP connectivity. Local synthesis and Opus demuxing are verified; actual VM runtime, architecture, and voice connectivity remain unverified. Follow [deployment and upgrading](deployment.md), then validate join, playback, and leave.
+The project and CI target Node 24.22.1 or a newer Node 24 patch. The installed `@discordjs/voice` 0.19.2 includes its supported DAVE implementation. Bundled Ogg Opus playback needs no extra JavaScript Opus encoder or external audio executable. Production needs readable sound assets, channel access, Connect/Speak permissions, and working UDP connectivity. Local asset playback through Opus demuxing is verified; actual VM runtime, architecture, and voice connectivity remain unverified. Follow [deployment and upgrading](deployment.md), then validate join, playback, and leave.
 
 References: [voice connections](https://discordjs.guide/voice/voice-connections), [release package requirements](https://github.com/discordjs/discord.js/blob/%40discordjs%2Fvoice%400.19.2/packages/voice/package.json), [Discord voice protocol](https://docs.discord.com/developers/topics/voice-connections).

@@ -42,7 +42,7 @@ export class DeadlockMatches {
     const match = this.reserve(target, seconds, "starting", notify);
     try {
       const schedule = await this.settings.prepare(target.guildId);
-      if (!schedule.some((item) => item.first.due || item.first.warning || item.recurring.due || item.recurring.warning)) throw new DeadlockError("Enable at least one objective callout before starting.");
+      if (!schedule.some((item) => item.first.due || item.first.warning || item.first.countdown || item.recurring.due || item.recurring.warning || item.recurring.countdown)) throw new DeadlockError("Enable at least one objective callout before starting.");
       await this.connect(match);
       match.run = new ReminderRun(structuredClone(schedule), seconds + (this.now() - match.requestedAt) / 1000, this.now);
       match.phase = "running";
@@ -54,12 +54,12 @@ export class DeadlockMatches {
     }
   }
 
-  async preview(target: VoiceTarget, id: string, kind: "first" | "first-warning" | "repeat" | "repeat-warning" = "first") {
+  async preview(target: VoiceTarget, id: string, kind: "first" | "first-warning" | "repeat" | "repeat-warning" | "first-countdown" | "repeat-countdown" = "first") {
     const match = this.reserve(target, 0, "preview");
     try {
       const item = (await this.settings.prepare(target.guildId)).find((item) => item.objective.id === id);
       if (!item) throw new DeadlockError("Objective not found or disabled.");
-      const clip = { first: item.first.due, "first-warning": item.first.warning, repeat: item.recurring.due, "repeat-warning": item.recurring.warning }[kind];
+      const clip = { first: item.first.due, "first-warning": item.first.warning, repeat: item.recurring.due, "repeat-warning": item.recurring.warning, "first-countdown": item.first.countdown, "repeat-countdown": item.recurring.countdown }[kind];
       if (!clip) throw new DeadlockError("This callout is disabled. Edit its settings first.");
       const voice = await this.connect(match);
       await voice.play([clip]);

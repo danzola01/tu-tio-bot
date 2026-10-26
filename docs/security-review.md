@@ -21,7 +21,7 @@ Updated transitive packages resolve the reported Undici, ws, lodash, nanoid, fas
 
 A clean install still emits an upstream `prebuild-install` deprecation notice from the current native SQLite driver. That transitive installer remains in the supported Prisma adapter's dependency tree; the full advisory audit is clean.
 
-Deadlock adds `@discordjs/voice` 0.19.2 and its supported DAVE implementation. Audio is generated locally by OS-provided eSpeak NG/FFmpeg. Keep those packages patched through the host's package manager; they are outside npm's advisory audit.
+Deadlock adds `@discordjs/voice` 0.19.2 and its supported DAVE implementation. Audio now uses original bundled Ogg Opus tones; the runtime no longer invokes eSpeak NG, FFmpeg, or a speech provider.
 
 ## Runtime and CI
 
@@ -39,8 +39,8 @@ Checkout, setup-node, and SSH actions were upgraded and pinned to release commit
 - A deployment preflight refuses a checkout change that would remove an existing SQLite file. This protects the initial transition away from tracked snapshots. See [upgrade instructions](deployment.md).
 - Integration tests use unique temporary databases and the real migrations, so they cannot reset the configured live database. Regression checks cover old SQLite timestamp storage, existing match commands, autocomplete routing, and both chart types.
 - Deadlock schedule mutations require the configured/application/team owner. All server members can control its single clock. Objective data is strictly validated and SQLite updates use a revision guard. Audio preparation completes before committing edits, preserving the previous schedule on failure.
-- Speech text is passed through stdin and subprocess argument arrays without a shell. Temporary synthesis files are removed, clips are atomically cached under content hashes, and subprocesses have timeouts. Playback queues are bounded and stop/dispose cancels pending playback.
-- Deadlock requests voice states and sends audio; it does not receive or record user speech. Discord voice uses the library's DAVE support. The audio cache contains generated objective wording and is ignored by Git.
+- Runtime audio resolves two fixed bundled files, without subprocesses, user-provided paths, or a writable cache. Playback queues are bounded and stop/dispose cancels pending playback. The development-only tone generator invokes FFmpeg through an argument array with a timeout.
+- Deadlock requests voice states and sends audio; it does not receive or record user speech. Discord voice uses the library's DAVE support. No audio wording or recordings are stored. Earlier speech-format schedules are read as sound settings without synthesizing their retired text.
 - A current text-file scan for private keys, Discord-token patterns, and AWS access-key patterns found no matches. Values were not printed. This targeted scan does not establish that every possible credential format or historical commit is clean.
 
 ## Remaining deployment checks
@@ -53,6 +53,6 @@ The SSH action now accepts `ORACLE_HOST_FINGERPRINT`. Its actual value was unava
 
 The architecture upgrade was verified with a clean Node 24 install, all 48 baseline tests, V8 coverage generation, and unchanged JSON definitions for the six existing slash commands. Coverage generation was checked for tooling compatibility; it does not imply every command branch or production integration is tested.
 
-The Deadlock full check passed typechecking, compilation, all 73 tests then present, and a full audit with zero findings. Subsequent review fixes passed the affected command/match/voice tests, adding seven lifecycle regressions, with typechecking and compilation passing afterward. The clock suite also covers independent recurring warnings; application/team ownership is checked at the command boundary. Real eSpeak/FFmpeg generation and Opus packet reading passed locally, including a fresh-cache deployment probe. Library diagnostics confirmed DAVE, native AES-256-GCM, and FFmpeg libopus availability. Live Discord/Oracle voice behavior remains unverified. See the [Deadlock code review](deadlock-review.md).
+The Deadlock full check passed typechecking, compilation, all 73 tests then present, and a full audit with zero findings. Subsequent review fixes passed the affected command/match/voice tests, adding seven lifecycle regressions, with typechecking and compilation passing afterward. The clock suite also covers independent recurring warnings; application/team ownership is checked at the command boundary. The earlier speech implementation was tested locally; the October 26 sound revision replaces that pipeline with bundled beep/ding assets and Opus playback checks. Library diagnostics confirmed DAVE, native AES-256-GCM, and FFmpeg libopus availability. Live Discord/Oracle voice behavior remains unverified. See the [Deadlock code review](deadlock-review.md).
 
 Use `npm ci` and commit `package-lock.json` with dependency changes. Run `npm run check`; use `npm run test:coverage` when changing coverage tooling. Keep Prisma packages and Vitest/coverage packages aligned. Review the release notes and run a clean install when changing native dependencies or the Node runtime. Update `.node-version`, `.nvmrc`, and `engines.node` together for Node security releases. Deployment details and runtime limitations are in [deployment.md](deployment.md).

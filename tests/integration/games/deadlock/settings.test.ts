@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { ObjectiveSettings } from "../../../../src/games/deadlock/settings.js";
 import { testDb } from "../../../setup.js";
-import type { Speech } from "../../../../src/games/deadlock/types.js";
+import type { SoundLibrary } from "../../../../src/games/deadlock/types.js";
 
-const speech: Speech = { prepare: async (text) => ({ text, path: `/audio/${text}.ogg` }) };
+const sounds: SoundLibrary = { prepare: async (sound) => ({ sound, path: `/audio/${sound}.ogg` }) };
 
 describe("Deadlock objective settings", () => {
-  it("persists editable timing, recurrence, warnings, and wording across settings instances", async () => {
-    const settings = new ObjectiveSettings(testDb, speech);
+  it("persists editable timing, recurrence, warnings, and countdowns across settings instances", async () => {
+    const settings = new ObjectiveSettings(testDb, sounds);
     const initial = await settings.list("server");
     expect(initial.map(({ id, firstAt, repeatEvery }) => [id, firstAt, repeatEvery])).toEqual([
       ["small-camps", 120, 90], ["medium-camps", 300, null], ["large-camps", 480, null], ["bridge-buffs", 300, 300], ["sinners", 480, 300],
@@ -15,21 +15,22 @@ describe("Deadlock objective settings", () => {
     const small = initial[0]!;
     await settings.save("server", {
       ...small, name: "Small jungle camps", firstAt: 180, repeatEvery: 120,
-      first: { ...small.first, announce: false, warningSeconds: 15, warningText: "{name}: {seconds} seconds." },
-      recurring: { ...small.recurring, warningSeconds: 10, text: "Time to farm." },
+      first: { ...small.first, announce: false, warningSeconds: 15, countdownSeconds: 5 },
+      recurring: { ...small.recurring, warningSeconds: 10, countdownSeconds: 3 },
     });
-    const restarted = new ObjectiveSettings(testDb, speech);
-    expect((await restarted.list("server"))[0]).toMatchObject({ name: "Small jungle camps", firstAt: 180, repeatEvery: 120, first: { announce: false, warningSeconds: 15 }, recurring: { warningSeconds: 10, text: "Time to farm." } });
+    const restarted = new ObjectiveSettings(testDb, sounds);
+    expect((await restarted.list("server"))[0]).toMatchObject({ name: "Small jungle camps", firstAt: 180, repeatEvery: 120, first: { announce: false, warningSeconds: 15 }, recurring: { warningSeconds: 10, countdownSeconds: 3 } });
     const prepared = (await restarted.prepare("server"))[0]!;
-    expect(prepared.first).toEqual({ warning: { text: "Small jungle camps: 15 seconds.", path: "/audio/Small jungle camps: 15 seconds..ogg" } });
-    expect(prepared.recurring.due?.text).toBe("Time to farm.");
+    expect(prepared.first).toEqual({ warning: { sound: "beep", path: "/audio/beep.ogg" }, countdown: { sound: "beep", path: "/audio/beep.ogg" } });
+    expect(prepared.recurring.due?.sound).toBe("ding");
+    expect(prepared.recurring.countdown?.sound).toBe("beep");
     expect((await restarted.list("other-server"))[0]!.name).toBe("Small camps");
   });
 
-  it("keeps the saved schedule when speech preparation for an edit fails", async () => {
-    const settings = new ObjectiveSettings(testDb, { prepare: async () => { throw new Error("Speech unavailable"); } });
+  it("keeps the saved schedule when sound preparation for an edit fails", async () => {
+    const settings = new ObjectiveSettings(testDb, { prepare: async () => { throw new Error("SoundLibrary unavailable"); } });
     const original = await settings.list("server");
-    await expect(settings.save("server", { ...original[0]!, name: "Changed camps" })).rejects.toThrow("Speech unavailable");
+    await expect(settings.save("server", { ...original[0]!, name: "Changed camps" })).rejects.toThrow("SoundLibrary unavailable");
     expect(await settings.list("server")).toEqual(original);
   });
 
@@ -37,10 +38,10 @@ describe("Deadlock objective settings", () => {
     let release = () => {};
     const gate = new Promise<void>((resolve) => { release = resolve; });
     let arrivals = 0;
-    const settings = new ObjectiveSettings(testDb, { prepare: async (text) => {
+    const settings = new ObjectiveSettings(testDb, { prepare: async (sound) => {
       if (++arrivals === 2) release();
       await gate;
-      return { text, path: "/audio/clip.ogg" };
+      return { sound, path: "/audio/clip.ogg" };
     } });
     const initial = await settings.list("server");
     const results = await Promise.allSettled([
@@ -52,7 +53,7 @@ describe("Deadlock objective settings", () => {
   });
 
   it("applies partial edits to the latest saved objective", async () => {
-    const settings = new ObjectiveSettings(testDb, speech);
+    const settings = new ObjectiveSettings(testDb, sounds);
     const original = (await settings.list("server"))[0]!;
     await settings.save("server", { ...original, name: "Renamed camps" });
     await settings.edit("server", original.id, (objective) => ({ ...objective, repeatEvery: 180 }));
@@ -60,7 +61,7 @@ describe("Deadlock objective settings", () => {
   });
 
   it("adds disabled objectives without speaking them and allows their removal", async () => {
-    const settings = new ObjectiveSettings(testDb, speech);
+    const settings = new ObjectiveSettings(testDb, sounds);
     const initial = await settings.list("server");
     await settings.save("server", { ...initial[0]!, id: "urn", name: "Urn", enabled: false, firstAt: 600, repeatEvery: null });
     expect((await settings.list("server")).map((objective) => objective.id)).toContain("urn");
@@ -69,12 +70,25 @@ describe("Deadlock objective settings", () => {
     expect(await settings.list("server")).toEqual(initial);
   });
 
-  it("rejects impossible warnings and unknown speech placeholders without changing settings", async () => {
-    const settings = new ObjectiveSettings(testDb, speech);
+  it("rejects impossible warning and countdown settings without changing settings", async () => {
+    const settings = new ObjectiveSettings(testDb, sounds);
     const original = await settings.list("server");
     const small = original[0]!;
     await expect(settings.save("server", { ...small, first: { ...small.first, warningSeconds: 120 } })).rejects.toThrow("before");
-    await expect(settings.save("server", { ...small, recurring: { ...small.recurring, text: "Check {unknown}." } })).rejects.toThrow("placeholder");
+    await expect(settings.save("server", { ...small, recurring: { ...small.recurring, countdownSeconds: 90 } })).rejects.toThrow("countdown");
     expect(await settings.list("server")).toEqual(original);
+  });
+
+  it("reads earlier speech schedules as sounds while preserving saved timing preferences", async () => {
+    await testDb.deadlockSchedule.create({ data: { guildId: "old-server", objectives: [{
+      id: "small-camps", name: "Small camps", enabled: true, firstAt: 120, repeatEvery: 90,
+      first: { announce: true, warningSeconds: 30, text: "Old speech", warningText: "Old warning" },
+      recurring: { announce: false, warningSeconds: null, text: "Old repeat", warningText: "Old warning" },
+    }] } });
+    const settings = new ObjectiveSettings(testDb, sounds);
+    expect((await settings.list("old-server"))[0]).toMatchObject({ firstAt: 120, repeatEvery: 90, first: { announce: true, warningSeconds: 30, countdownSeconds: null }, recurring: { announce: false } });
+    expect((await settings.prepare("old-server"))[0]!.first).toEqual({ due: { sound: "ding", path: "/audio/ding.ogg" }, warning: { sound: "beep", path: "/audio/beep.ogg" } });
+    await settings.edit("old-server", "small-camps", (objective) => ({ ...objective, first: { ...objective.first, countdownSeconds: 5 } }));
+    expect((await new ObjectiveSettings(testDb, sounds).list("old-server"))[0]!.first.countdownSeconds).toBe(5);
   });
 });

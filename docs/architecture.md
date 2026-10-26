@@ -8,9 +8,9 @@ Tu Tio Bot is a server bot with game-owned features: Overwatch history and Deadl
 - `src/bot/`: the game-neutral command interface, registry, Discord client, and interaction routing/error handling.
 - `src/games/index.ts`: the single catalog used by runtime and slash-command deployment.
 - `src/games/overwatch/`: Overwatch commands, match/statistics logic, map and hero rules, private dependency types, and the history-wipe script.
-- `src/games/deadlock/`: objective validation/settings, match clocks, voice/speech adapters, commands, and voice-state cleanup.
+- `src/games/deadlock/`: objective validation/settings, match clocks, voice/sound adapters, commands, and voice-state cleanup.
 - `src/infra/`: shared logging, Prisma client construction, and SQLite URL compatibility.
-- `scripts/`: runtime, build cleanup, and deployment checks, including a standalone Deadlock speech probe. Builds clear old generated output before compiling, so moved game code cannot leave stale modules in `dist/`.
+- `scripts/`: runtime, build cleanup, and deployment checks, including a standalone Deadlock sound probe. Builds clear old generated output before compiling, so moved game code cannot leave stale modules in `dist/`.
 - `src/config.ts`: environment validation. `.env.example` lists the configuration.
 - `prisma/`: the shared database schema and migration history. Generated client code goes into ignored `src/generated/prisma/`.
 - `tests/unit/` and `tests/integration/`: tests grouped by game or shared bot/infra responsibility.
@@ -53,11 +53,13 @@ This is an explicit in-process catalog, without dynamic plugin loading. Modules 
 
 ## Deadlock boundaries
 
-`ObjectiveSettings` validates a guild's schedule, prepares all enabled callouts, then commits the JSON snapshot with a revision check. Failed synthesis or a concurrent edit preserves the previous saved schedule. `DeadlockSchedule` stores settings separately from Overwatch data. Active matches take an independent prepared snapshot, so editing does not affect a running clock.
+`ObjectiveSettings` validates a guild's schedule, prepares all enabled callouts, then commits the JSON snapshot with a revision check. An unavailable sound asset or a concurrent edit preserves the previous saved schedule. `DeadlockSchedule` stores settings separately from Overwatch data. Active matches take an independent prepared snapshot, so editing does not affect a running clock.
 
 `ReminderRun` owns monotonic match time and due callouts. `DeadlockMatches` owns one active run per guild, timer deadlines, cancellation, previews, and failure cleanup. Syncing resets the delivery cursor: forward corrections skip passed callouts; backward corrections re-arm future callouts. Event-loop stalls drop announcements older than two seconds instead of replaying a backlog.
 
-The `Speech` port prepares a clip from text. `CachedSpeech` uses eSpeak NG and FFmpeg through argument arrays and stdin, caches Ogg Opus by text/voice settings, and atomically publishes generated files. Replacing this provider can improve voice quality without changing objectives or scheduling. `VoiceTransport` and `VoiceSession` isolate Discord joining, DAVE-enabled playback, cancellation, and leaving. Simultaneous reminders form one batch of sequential clips; pending playback is bounded and stale queued batches are skipped.
+The `SoundLibrary` port resolves a beep or ding to an audio clip. `BundledSounds` checks readable, nonempty assets from `assets/deadlock/`, which use Ogg Opus and require no runtime conversion, synthesis, or writable cache. `VoiceTransport` and `VoiceSession` isolate Discord joining, DAVE-enabled playback, cancellation, and leaving. Simultaneous sounds coalesce to a single cue, with a due ding taking precedence over beeps. Pending playback remains bounded; stale queued sounds and overdue countdown ticks are skipped.
+
+Objective callout settings contain independent due-ding, advance-beep, and countdown controls for first and recurring reminders. The settings reader accepts the former speech JSON format, discards retired text, and sets countdowns off while retaining timing and enablement. Subsequent saves persist the sound format; no new SQL migration is required.
 
 Deadlock's module declares `GuildVoiceStates` and passes bot-channel observations to the match manager. Each attempt tracks its own join acknowledgement: earlier leave acknowledgements are ignored before it joins, while departures after that acknowledgement cancel the attempt even during the connection handshake. Human membership changes stop the run when no humans remain. The voice adapter bounds every transition out of Ready with a 20-second recovery deadline, including direct Signalling/Connecting transitions. It never receives users' audio. Active clocks are deliberately in memory; after a bot restart, start again with the current match time.
 

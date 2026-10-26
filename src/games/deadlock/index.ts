@@ -1,24 +1,21 @@
-import { fileURLToPath } from "node:url";
 import { Events, GatewayIntentBits, type VoiceState } from "discord.js";
 import type { GameModule } from "../../bot/types.js";
 import type { DbClient } from "../../infra/db.js";
 import { createDeadlockCommand } from "./commands.js";
 import { DeadlockMatches } from "./matches.js";
 import { ObjectiveSettings } from "./settings.js";
-import { CachedSpeech } from "./speech.js";
-import type { Speech, VoiceTransport } from "./types.js";
+import { BundledSounds } from "./sounds.js";
+import type { SoundLibrary, VoiceTransport } from "./types.js";
 import { DiscordVoiceTransport } from "./voice.js";
 
 export interface DeadlockOptions {
   ownerId?: string;
-  audioDirectory?: string;
-  speech?: Speech;
+  sounds?: SoundLibrary;
   voice?: VoiceTransport;
 }
 
 export function createDeadlockModule(db: DbClient, options: DeadlockOptions = {}): GameModule {
-  const speech = options.speech ?? new CachedSpeech(options.audioDirectory ?? fileURLToPath(new URL("../../../data/deadlock-audio/", import.meta.url)));
-  const settings = new ObjectiveSettings(db, speech);
+  const settings = new ObjectiveSettings(db, options.sounds ?? new BundledSounds());
   const matches = new DeadlockMatches(settings, options.voice ?? new DiscordVoiceTransport());
   let detach = () => {};
   return {
