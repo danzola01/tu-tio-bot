@@ -1,6 +1,6 @@
 # Deadlock implementation review
 
-This section records the original October 22 speech implementation and lifecycle fixes. The October 26 sound revision is reviewed separately below.
+This section records the original October 22 speech implementation and lifecycle fixes. The October 26 sound revision has a [separate review](deadlock-sounds-review.md).
 
 Review base: `1ba4c67003bc0ab3043568cb3f95d904db1e6972` (game-module architecture baseline). Feature commit: `587bdae`. Reviewed October 22, 2026 using separate standards and spec reviewers. Both reviews were read-only.
 

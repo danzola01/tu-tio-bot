@@ -38,6 +38,7 @@ export interface PreparedObjective {
 export interface Callout {
   at: number;
   clips: readonly AudioClip[];
+  /** Absolute performance.now() milliseconds; queueing must not extend this. */
   expiresAt: number;
 }
 import type { DiscordGatewayAdapterCreator } from "@discordjs/voice";

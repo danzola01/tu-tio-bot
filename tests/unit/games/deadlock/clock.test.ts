@@ -132,4 +132,15 @@ describe("Deadlock match clock", () => {
     now = 119_000;
     expect(run.takeDue()).toMatchObject([{ at: 119, clips: [first.first.countdown] }]);
   });
+
+  it("does not revive an expired countdown through an overlapping advance beep", () => {
+    let now = 0;
+    const small = camp();
+    small.objective.first.warningSeconds = 5;
+    small.objective.first.countdownSeconds = 5;
+    small.first.countdown = { sound: "beep", path: "beep.ogg" };
+    const run = new ReminderRun([small], 0, () => now);
+    now = 116_500;
+    expect(run.takeDue()).toEqual([{ at: 116, clips: [small.first.countdown], expiresAt: 117000 }]);
+  });
 });

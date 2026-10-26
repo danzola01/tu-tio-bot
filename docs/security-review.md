@@ -1,6 +1,6 @@
 # Security and dependency review
 
-Reviewed October 22, 2026 as part of the game-module refactor and Deadlock implementation. This covers the repository's dependency tree, runtime and workflow configuration, current text files for selected secret patterns, and the changed command/database/voice paths. It is not a penetration test or a full Git-history secret audit.
+Reviewed October 22, 2026 as part of the game-module refactor and Deadlock implementation, with audio/dependency validation updated October 26 for sound reminders. This covers the repository's dependency tree, runtime and workflow configuration, current text files for selected secret patterns, and the changed command/database/voice paths. It is not a penetration test or a full Git-history secret audit.
 
 ## Dependency findings
 
@@ -56,3 +56,5 @@ The architecture upgrade was verified with a clean Node 24 install, all 48 basel
 The Deadlock full check passed typechecking, compilation, all 73 tests then present, and a full audit with zero findings. Subsequent review fixes passed the affected command/match/voice tests, adding seven lifecycle regressions, with typechecking and compilation passing afterward. The clock suite also covers independent recurring warnings; application/team ownership is checked at the command boundary. The earlier speech implementation was tested locally; the October 26 sound revision replaces that pipeline with bundled beep/ding assets and Opus playback checks. Library diagnostics confirmed DAVE, native AES-256-GCM, and FFmpeg libopus availability. Live Discord/Oracle voice behavior remains unverified. See the [Deadlock code review](deadlock-review.md).
 
 Use `npm ci` and commit `package-lock.json` with dependency changes. Run `npm run check`; use `npm run test:coverage` when changing coverage tooling. Keep Prisma packages and Vitest/coverage packages aligned. Review the release notes and run a clean install when changing native dependencies or the Node runtime. Update `.node-version`, `.nvmrc`, and `engines.node` together for Node security releases. Deployment details and runtime limitations are in [deployment.md](deployment.md).
+
+The October 26 sound revision passed the full check with 85 tests and zero npm audit findings. The final overlap regression and fix passed all 19 affected clock/voice/match tests, plus typechecking and compilation. Bundled beep/ding Opus checks also passed, with no runtime synthesis tools or writable cache. See the [sound revision review](deadlock-sounds-review.md) for findings and resolutions.
