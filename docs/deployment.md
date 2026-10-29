@@ -45,9 +45,9 @@ Actions are pinned to reviewed release commit hashes. Dependabot checks npm and 
 
 ## Deadlock voice setup
 
-The beep and ding are checked-in Ogg Opus files under `assets/deadlock/`. Keep that directory in the deployed checkout and allow the service account to read it. No eSpeak NG, FFmpeg, writable audio cache, or speech service is required. The npm voice library includes DAVE support; Ogg Opus playback requires no extra JavaScript Opus encoder.
+The beep, ding, and spoken warnings are checked-in Ogg Opus files under `assets/deadlock/`. Keep that directory in the deployed checkout and allow the service account to read it. No eSpeak NG, FFmpeg, writable audio cache, or speech service is required. The npm voice library includes DAVE support; Ogg Opus playback requires no extra JavaScript Opus encoder.
 
-Run `npm run check:audio` as the service account. It reads both assets through the Discord Opus playback pipeline without joining Discord or writing files. Deployment runs this before migration/restart. `DEADLOCK_AUDIO_DIR` is retired and can be removed from old environments; an old speech cache may be archived or removed after confirming it is unused. FFmpeg is needed only by developers intentionally regenerating the bundled tones with `node scripts/generate-deadlock-sounds.mjs`.
+Run `npm run check:audio` as the service account. It confirms every default objective has a spoken warning and reads each asset through the Discord Opus playback pipeline without joining Discord or writing files. Deployment runs this before migration/restart. `DEADLOCK_AUDIO_DIR` is retired and can be removed from old environments; an old speech cache may be archived or removed after confirming it is unused. FFmpeg is needed only by developers intentionally regenerating the bundled tones with `node scripts/generate-deadlock-sounds.mjs`, or the spoken warnings with `npm run generate:voices` (which also needs `OPENROUTER_API_KEY`).
 
 Grant the bot View Channel, Connect, and Speak in the regular voice channel. `GuildVoiceStates` is requested by the game module; it does not require enabling a privileged voice intent in the portal. Allow the outbound UDP connectivity used by Discord voice. Set `BOT_OWNER_ID` if schedule editing should use an explicit Discord user ID; otherwise application/team ownership is used.
 

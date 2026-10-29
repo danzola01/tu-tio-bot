@@ -31,8 +31,11 @@ A reminder to consider farming a camp, without asserting that the camp has respa
 The planned times, repeat intervals, advance beeps, countdowns, and due dings for objective reminders.
 
 **Sound reminder**:
-An audible beep or ding heard by players in a Discord voice channel.
-_Avoid_: Spoken announcement, voice callout
+An audible beep, ding, or spoken warning heard by players in a Discord voice channel.
+
+**Spoken warning**:
+A pre-recorded clip naming an objective, played in place of its advance beep when enabled.
+_Avoid_: Text-to-speech announcement (nothing is synthesized at runtime)
 
 **Scheduled reminder**:
 A reminder due at a predetermined match-clock time, independently of observed game events.

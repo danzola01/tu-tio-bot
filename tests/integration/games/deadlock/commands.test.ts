@@ -63,6 +63,24 @@ describe("Deadlock Discord commands", () => {
     expect(saved.embeds[0]!.toJSON().fields.some((field) => field.name.includes("Small camps"))).toBe(false);
   });
 
+  it("turns spoken warnings on per objective and shows them in the schedule", async () => {
+    const game = createDeadlockModule(testDb, { ownerId: "owner", sounds: { prepare: async (sound, id) => ({ sound, path: `/${id ?? sound}.ogg` }) } });
+    const command = game.commands[0]!;
+    const edit = commandCall("edit", { objective: "sinners", spoken: true }, "owner", "objective");
+    await command.execute(edit.interaction);
+    expect(edit.editReply).toHaveBeenCalledWith(expect.stringContaining("next start"));
+    const show = commandCall("show", { objective: "sinners" }, "friend", "objective");
+    await command.execute(show.interaction);
+    const shown = show.editReply.mock.calls[0]![0] as { embeds: { toJSON(): { fields: { value: string }[] } }[] };
+    expect(shown.embeds[0]!.toJSON().fields[0]!.value).toContain("Advance voice: 30s");
+    const schedule = commandCall("schedule");
+    await command.execute(schedule.interaction);
+    const saved = schedule.editReply.mock.calls[0]![0] as { embeds: { toJSON(): { fields: { name: string; value: string }[] } }[] };
+    const fields = saved.embeds[0]!.toJSON().fields;
+    expect(fields.find((field) => field.name.includes("Sinners"))!.value).toContain("Voice 30s");
+    expect(fields.find((field) => field.name.includes("Small camps"))!.value).toContain("Beep 30s");
+  });
+
   it("lets friends join their voice channel, share clock controls, and stop playback", async () => {
     let joined = "";
     let closed = false;

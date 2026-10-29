@@ -5,7 +5,7 @@ import type { Command } from "../../bot/types.js";
 import { logger } from "../../infra/logger.js";
 import { DeadlockError } from "./errors.js";
 import type { DeadlockMatches } from "./matches.js";
-import { createObjective } from "./objectives.js";
+import { createObjective, objectiveId } from "./objectives.js";
 import type { ObjectiveSettings } from "./settings.js";
 import { formatTime, parseTime } from "./time.js";
 import type { Objective, VoiceTarget } from "./types.js";
@@ -16,6 +16,7 @@ function objectiveOptions(builder: SlashCommandSubcommandBuilder, required: bool
     .addStringOption((option) => option.setName("first").setDescription("First time: seconds, MM:SS, or HH:MM:SS").setRequired(required))
     .addStringOption((option) => option.setName("repeat").setDescription("Repeat interval, or off"))
     .addBooleanOption((option) => option.setName("enabled").setDescription("Enable this objective"))
+    .addBooleanOption((option) => option.setName("spoken").setDescription("Speak the objective name instead of advance beeps"))
     .addStringOption((option) => option.setName("warning").setDescription("Advance beep lead time, or off"))
     .addStringOption((option) => option.setName("repeat-warning").setDescription("Recurring advance beep lead time, or off"))
     .addBooleanOption((option) => option.setName("announce").setDescription("Play a ding at the first scheduled time"))
@@ -60,6 +61,7 @@ function changes(interaction: ChatInputCommandInteraction, objective: Objective)
   return {
     ...objective, name: options.getString("name") ?? objective.name,
     enabled: options.getBoolean("enabled") ?? objective.enabled,
+    spoken: options.getBoolean("spoken") ?? objective.spoken,
     firstAt: firstAt === null ? objective.firstAt : parseTime(firstAt),
     repeatEvery: interval(options.getString("repeat"), objective.repeatEvery),
     first: {
@@ -76,23 +78,23 @@ function changes(interaction: ChatInputCommandInteraction, objective: Objective)
 }
 
 const leadTime = (seconds: number | null) => seconds === null ? "off" : `${seconds}s`;
-const soundSummary = (settings: Objective["first"]) =>
-  `Advance beep: ${leadTime(settings.warningSeconds)} · Countdown: ${leadTime(settings.countdownSeconds)} · Due ding: ${settings.announce ? "on" : "off"}`;
+const soundSummary = (objective: Objective, settings: Objective["first"]) =>
+  `Advance ${objective.spoken ? "voice" : "beep"}: ${leadTime(settings.warningSeconds)} · Countdown: ${leadTime(settings.countdownSeconds)} · Due ding: ${settings.announce ? "on" : "off"}`;
 
 function scheduleEmbed(objectives: readonly Objective[]) {
-  const summary = (settings: Objective["first"]) => `Beep ${leadTime(settings.warningSeconds)} · Countdown ${leadTime(settings.countdownSeconds)} · Ding ${settings.announce ? "on" : "off"}`;
+  const summary = (objective: Objective, settings: Objective["first"]) => `${objective.spoken ? "Voice" : "Beep"} ${leadTime(settings.warningSeconds)} · Countdown ${leadTime(settings.countdownSeconds)} · Ding ${settings.announce ? "on" : "off"}`;
   return new EmbedBuilder().setTitle("Deadlock saved schedule")
     .setDescription("Edits apply on the next start. Sounds do not detect objective availability.")
     .addFields(objectives.map((objective) => ({
       name: `${objective.enabled ? "On" : "Off"} · ${objective.name}`,
-      value: `First ${formatTime(objective.firstAt)}: ${summary(objective.first)}\nEvery ${objective.repeatEvery === null ? "off" : formatTime(objective.repeatEvery)}: ${summary(objective.recurring)}`,
+      value: `First ${formatTime(objective.firstAt)}: ${summary(objective, objective.first)}\nEvery ${objective.repeatEvery === null ? "off" : formatTime(objective.repeatEvery)}: ${summary(objective, objective.recurring)}`,
     })));
 }
 
 function objectiveEmbed(objective: Objective) {
   return new EmbedBuilder().setTitle(`${objective.name} (${objective.id})`)
     .setDescription(`Enabled: ${objective.enabled}\nFirst: ${formatTime(objective.firstAt)} · Repeat: ${objective.repeatEvery === null ? "off" : formatTime(objective.repeatEvery)}\nSaved settings apply on the next start.`)
-    .addFields({ name: "First reminder", value: soundSummary(objective.first) }, { name: "Recurring reminders", value: soundSummary(objective.recurring) });
+    .addFields({ name: "First reminder", value: soundSummary(objective, objective.first) }, { name: "Recurring reminders", value: soundSummary(objective, objective.recurring) });
 }
 
 async function requireOwner(interaction: ChatInputCommandInteraction, configured?: string) {
@@ -146,8 +148,7 @@ export function createDeadlockCommand(settings: ObjectiveSettings, matches: Dead
           const objectives = await settings.list(guildId);
           if (action === "add") {
             const name = interaction.options.getString("name", true).trim();
-            const slug = name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-            const id = slug || randomUUID();
+            const id = objectiveId(name) || randomUUID();
             if (objectives.some((item) => item.id === id)) throw new DeadlockError("An objective with this name already exists.");
             await settings.save(guildId, changes(interaction, createObjective(id, name, parseTime(interaction.options.getString("first", true)))));
             await interaction.editReply("Objective saved and sounds checked. Changes apply on the next start.");

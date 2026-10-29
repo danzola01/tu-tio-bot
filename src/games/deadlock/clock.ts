@@ -85,9 +85,12 @@ export class ReminderRun {
     }
     this.last = elapsed;
     return [...groups].sort(([a], [b]) => a - b).map(([at, sounds]) => {
-      const selected = sounds.find(({ clip }) => clip.sound === "ding")
-        ?? sounds.reduce((earliest, sound) => sound.expiresAt < earliest.expiresAt ? sound : earliest);
-      return { at, clips: [selected.clip], expiresAt: selected.expiresAt };
+      // A ding plays first, then each distinct spoken warning; either replaces beeps. Beeps alone collapse into one.
+      const ding = sounds.find(({ clip }) => clip.sound === "ding");
+      const voices = sounds.filter(({ clip }, index) => clip.sound === "voice" && sounds.findIndex((other) => other.clip.path === clip.path) === index);
+      const selected = ding || voices.length ? [...(ding ? [ding] : []), ...voices]
+        : [sounds.reduce((earliest, sound) => sound.expiresAt < earliest.expiresAt ? sound : earliest)];
+      return { at, clips: selected.map(({ clip }) => clip), expiresAt: selected[0]!.expiresAt };
     }).filter((callout) => callout.expiresAt > monotonicNow);
   }
 }

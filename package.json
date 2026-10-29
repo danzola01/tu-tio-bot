@@ -22,7 +22,8 @@
     "prestart": "node scripts/check-runtime.mjs",
     "predev": "node scripts/check-runtime.mjs",
     "prebuild": "node scripts/check-runtime.mjs && node scripts/clean-build.mjs",
-    "check:audio": "tsx scripts/check-deadlock-audio.ts"
+    "check:audio": "tsx scripts/check-deadlock-audio.ts",
+    "generate:voices": "tsx scripts/generate-deadlock-voices.ts"
   },
   "dependencies": {
     "@discordjs/voice": "^0.19.2",

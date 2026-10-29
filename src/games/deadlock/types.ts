@@ -8,6 +8,8 @@ export interface Objective {
   id: string;
   name: string;
   enabled: boolean;
+  /** Speak the objective name instead of advance beeps. */
+  spoken: boolean;
   firstAt: number;
   repeatEvery: number | null;
   first: CalloutSettings;
@@ -15,12 +17,13 @@ export interface Objective {
 }
 
 export interface AudioClip {
-  sound: "beep" | "ding";
+  sound: "beep" | "ding" | "voice";
   path: string;
 }
 
 export interface SoundLibrary {
-  prepare(sound: AudioClip["sound"]): Promise<AudioClip>;
+  /** Voice clips belong to one objective, so they need its ID. */
+  prepare(sound: AudioClip["sound"], objectiveId?: string): Promise<AudioClip>;
 }
 
 export interface PreparedCallouts {
