@@ -53,10 +53,11 @@ Add requires `name` and `first`; it creates a stable ID from the name. Use the o
 
 | Option | Meaning |
 | --- | --- |
-| `name` | Display name (never spoken), up to 48 characters. |
+| `name` | Display name, up to 48 characters. Renaming does not re-record a spoken warning. |
 | `first` | First scheduled match time. |
 | `repeat` | Interval after the first time; `off` disables repeats. |
 | `enabled` | Enable or disable the entire objective. |
+| `spoken` | Speak the objective's name instead of its first and recurring advance beeps. |
 | `warning` | First advance beep lead time; `off` disables it. |
 | `repeat-warning` | Recurring advance beep lead time; `off` disables it. |
 | `announce` | Enable the first due ding independently of beeps. |
@@ -66,14 +67,26 @@ Add requires `name` and `first`; it creates a stable ID from the name. Use the o
 
 Times accept whole seconds, `MM:SS`, or `HH:MM:SS`, up to 24 hours. First times and intervals must be positive. Use `off` for disabling advance beeps, countdowns, or repeats. Warning and countdown lead times must be shorter than the first time or repeat interval. At most 25 objectives can be saved per server.
 
-To get only a ding, set `warning:off countdown:off announce:true`. To get only countdown beeps, set `warning:off countdown:5 announce:false`. Recurring settings are independent. Countdown ticks are single beeps from T−N through T−1, with no tick at T.
+To get only a ding, set `warning:off countdown:off announce:true`. To learn which beep is which, set `spoken:true`: the advance warning then says, for example, "Sinners coming up" (the countdown beeps and due ding stay the same). Spoken warnings follow the `warning` and `repeat-warning` lead times; with repeat warnings off, repeats stay ding-only. To get only countdown beeps, set `warning:off countdown:5 announce:false`. Recurring settings are independent. Countdown ticks are single beeps from T−N through T−1, with no tick at T.
 
 Saving validates settings and checks the enabled sound assets before updating the database. An audio failure keeps the previous saved schedule. If another edit wins during preparation, retry the rejected edit. Edits apply on the next start. Earlier saved speech schedules keep their timings and warning/due choices; countdowns default off for those records until enabled. Old text and text-edit commands are retired.
 
 Preview kinds are `first`, `first-warning`, `repeat`, `repeat-warning`, `first-countdown`, and `repeat-countdown`. A countdown preview plays one sample beep, not a timed sequence. The selected objective/component must be enabled. Pausing or syncing cancels pending sounds; forward sync skips past ticks and backward sync re-arms future ticks. After a stall, countdown ticks a full second old are discarded rather than rushed through.
 
+## Spoken warnings
+
+Spoken warnings are pre-recorded clips named after objective IDs, in `assets/deadlock/voice/`. The five default objectives ship with clips; spoken warnings are off until enabled per objective. A custom objective needs its own clip first, or saving with `spoken:true` fails with instructions:
+
+```text
+npm run generate:voices -- "Custom reminder"
+```
+
+This calls OpenRouter's text-to-speech API with `OPENROUTER_API_KEY` from `.env`, then encodes `custom-reminder.ogg` with FFmpeg. Commit the clip and redeploy. Run it without names to re-record the defaults. `DEADLOCK_TTS_MODEL` and `DEADLOCK_TTS_VOICE` override the voice. The bot host never calls OpenRouter.
+
+When an advance warning coincides with other sounds, a due ding plays first, then each distinct spoken warning; coinciding beeps are skipped. Every clip still has to start within two seconds of its scheduled time, so a third simultaneous line may be skipped.
+
 ## Audio and troubleshooting
 
-The beep and bell-like ding are bundled Ogg Opus assets. Playback needs no speech engine, FFmpeg, writable audio cache, or paid service. Run `npm run check:audio` to read both assets through the Discord playback pipeline. If it fails, restore `assets/deadlock/` and check read permissions. `DEADLOCK_AUDIO_DIR` is no longer used.
+The beep, bell-like ding, and spoken warnings are bundled Ogg Opus assets. Playback needs no speech engine, FFmpeg, writable audio cache, or paid service. Run `npm run check:audio` to read every asset through the Discord playback pipeline. If it fails, restore `assets/deadlock/` and check read permissions. `DEADLOCK_AUDIO_DIR` is no longer used.
 
 If joining or playback fails, check channel permissions and the host’s UDP connectivity, then restart the timer at the current game time. See [deployment](deployment.md) for the host setup and live smoke test.

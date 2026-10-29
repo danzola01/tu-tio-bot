@@ -1,6 +1,6 @@
 # Deadlock sound timers
 
-Status: implemented design, revised October 26, 2026 to replace spoken announcements with beeps and dings. See the [command guide](deadlock-usage.md), [architecture](architecture.md), and [deployment prerequisites](deployment.md). Live Discord/Oracle voice playback still needs deployment validation.
+Status: implemented design, revised October 26, 2026 to replace spoken announcements with beeps and dings, and October 28, 2026 to add optional pre-recorded spoken warnings. See the [command guide](deadlock-usage.md), [architecture](architecture.md), and [deployment prerequisites](deployment.md). Live Discord/Oracle voice playback still needs deployment validation.
 
 ## Purpose
 
@@ -14,7 +14,7 @@ Help three friends learning Deadlock remember objectives through short sound rem
 - Only the bot owner manages the saved schedule. Add, edit, disable, and remove objectives through Discord without deploying code or recording audio manually.
 - Save objective settings across bot restarts. Schedule edits affect the next start; an active match retains its original settings and callouts.
 - Begin with small camps, medium camps, large camps, bridge powerups ("bridge buffs"), and Sinner's Sacrifice ("Sinners"). Sinners must include recurring checks as well as the first reminder at 8:00.
-- Use a short beep for advance warnings and countdowns, and a distinct bell-like ding at the scheduled time. Objective names remain display labels; the bot does not speak them.
+- Use a short beep for advance warnings and countdowns, and a distinct bell-like ding at the scheduled time. Each objective can optionally replace its advance beeps with a pre-recorded clip that names it, so players can tell beeps apart while learning.
 
 ## Editable objective settings
 
@@ -39,7 +39,7 @@ These defaults were accepted as part of the design and can be edited in Discord:
 - **Bridge buffs:** first at 5:00; repeat every five minutes, at 10:00, 15:00, and so on.
 - **Sinners:** first at 8:00; reminders every five minutes afterward, starting at 13:00.
 
-First reminders default to a 30-second advance beep, a five-second countdown, and a due ding. For a 2:00 objective, this means a beep at 1:30, one beep each at 1:55–1:59, and a ding at 2:00. Repeats default to a due ding only. All three parts are independently optional for both first and repeat reminders. Coalesce simultaneous beeps into one; a due ding takes priority over a beep at the same instant. New objectives use these defaults. Earlier saved speech schedules preserve their existing advance/due settings and start with countdowns off until explicitly enabled.
+First reminders default to a 30-second advance beep, a five-second countdown, and a due ding. For a 2:00 objective, this means a beep at 1:30, one beep each at 1:55–1:59, and a ding at 2:00. Repeats default to a due ding only. All three parts are independently optional for both first and repeat reminders. Coalesce simultaneous beeps into one; a due ding takes priority over a beep at the same instant. Spoken warnings are off by default; when enabled, coinciding spoken warnings each play after any ding instead of a beep. New objectives use these defaults. Earlier saved speech schedules preserve their existing advance/due settings and start with countdowns off until explicitly enabled.
 
 ## Clock and voice behavior
 
@@ -51,7 +51,7 @@ First reminders default to a 30-second advance beep, a five-second countdown, an
 
 ## Audio assets
 
-Use the checked-in `assets/deadlock/beep.ogg` and `ding.ogg` sounds. Both are stereo 48 kHz Ogg Opus and shorter than one second. The host requires no speech tooling, FFmpeg, audio cache, or synthesis service. The development-only generator uses FFmpeg to regenerate the original tones; it is not part of deployment or playback.
+Use the checked-in `assets/deadlock/beep.ogg` and `ding.ogg` sounds. Both are stereo 48 kHz Ogg Opus and shorter than one second. Spoken warnings are `assets/deadlock/voice/<objective-id>.ogg`, recorded once with OpenRouter text-to-speech by `npm run generate:voices` and checked in. The host requires no speech tooling, FFmpeg, audio cache, API key, or synthesis service. The development-only generators use FFmpeg; they are not part of deployment or playback. A custom objective can be spoken only after its clip is generated and deployed.
 
 Validate enabled sounds before committing schedule edits. A missing asset leaves the prior saved schedule unchanged and explains the failure in Discord. Preview supports a due ding, advance beep, or one countdown beep sample. Timing edits reuse the same assets. Countdown ticks older than one second are dropped after stalls; other missed reminders retain the existing two-second grace, preventing a backlog. No beep plays at the due instant when the ding is enabled.
 

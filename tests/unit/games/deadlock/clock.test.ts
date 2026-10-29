@@ -5,7 +5,7 @@ import type { PreparedObjective } from "../../../../src/games/deadlock/types.js"
 function camp(name = "Small camps", firstAt = 120): PreparedObjective {
   return {
     objective: {
-      id: name, name, enabled: true, firstAt, repeatEvery: null,
+      id: name, name, enabled: true, spoken: false, firstAt, repeatEvery: null,
       first: { announce: true, warningSeconds: 30, countdownSeconds: null },
       recurring: { announce: true, warningSeconds: null, countdownSeconds: null },
     },
@@ -131,6 +131,32 @@ describe("Deadlock match clock", () => {
     expect(run.takeDue()).toMatchObject([{ at: 118, clips: [first.first.countdown] }]);
     now = 119_000;
     expect(run.takeDue()).toMatchObject([{ at: 119, clips: [first.first.countdown] }]);
+  });
+
+  it("speaks every simultaneous warning after a ding instead of collapsing them into one beep", () => {
+    let now = 0;
+    const medium = camp("Medium camps", 300);
+    const bridge = camp("Bridge buffs", 300);
+    const small = camp("Small camps", 270);
+    medium.first.warning = { sound: "voice", path: "medium-camps.ogg" };
+    bridge.first.warning = { sound: "voice", path: "bridge-buffs.ogg" };
+    const run = new ReminderRun([medium, bridge, small], 0, () => now);
+    now = 270_000;
+    expect(run.takeDue()).toEqual([{ at: 270, clips: [small.first.due, medium.first.warning, bridge.first.warning], expiresAt: 272000 }]);
+  });
+
+  it("lets a spoken warning replace an overlapping countdown beep", () => {
+    let now = 0;
+    const small = camp();
+    small.objective.first.warningSeconds = 5;
+    small.objective.first.countdownSeconds = 5;
+    small.first.warning = { sound: "voice", path: "small-camps.ogg" };
+    small.first.countdown = { sound: "beep", path: "beep.ogg" };
+    const run = new ReminderRun([small], 0, () => now);
+    now = 115_000;
+    expect(run.takeDue()).toEqual([{ at: 115, clips: [small.first.warning], expiresAt: 117000 }]);
+    now = 116_000;
+    expect(run.takeDue()).toEqual([{ at: 116, clips: [small.first.countdown], expiresAt: 117000 }]);
   });
 
   it("does not revive an expired countdown through an overlapping advance beep", () => {

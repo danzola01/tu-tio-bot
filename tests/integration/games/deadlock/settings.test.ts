@@ -3,7 +3,7 @@ import { ObjectiveSettings } from "../../../../src/games/deadlock/settings.js";
 import { testDb } from "../../../setup.js";
 import type { SoundLibrary } from "../../../../src/games/deadlock/types.js";
 
-const sounds: SoundLibrary = { prepare: async (sound) => ({ sound, path: `/audio/${sound}.ogg` }) };
+const sounds: SoundLibrary = { prepare: async (sound, id) => ({ sound, path: `/audio/${id ?? sound}.ogg` }) };
 
 describe("Deadlock objective settings", () => {
   it("persists editable timing, recurrence, warnings, and countdowns across settings instances", async () => {
@@ -70,6 +70,25 @@ describe("Deadlock objective settings", () => {
     expect(await settings.list("server")).toEqual(initial);
   });
 
+  it("prepares the objective's voice clip for every advance warning when spoken", async () => {
+    const settings = new ObjectiveSettings(testDb, sounds);
+    expect((await settings.list("server")).every((objective) => !objective.spoken)).toBe(true);
+    await settings.edit("server", "sinners", (objective) => ({ ...objective, spoken: true, recurring: { ...objective.recurring, warningSeconds: 30 } }));
+    const sinners = (await settings.prepare("server")).find((item) => item.objective.id === "sinners")!;
+    expect(sinners.first).toMatchObject({ warning: { sound: "voice", path: "/audio/sinners.ogg" }, countdown: { sound: "beep" }, due: { sound: "ding" } });
+    expect(sinners.recurring.warning).toEqual({ sound: "voice", path: "/audio/sinners.ogg" });
+  });
+
+  it("keeps the saved schedule when an objective has no recorded voice", async () => {
+    const settings = new ObjectiveSettings(testDb, { prepare: async (sound, id) => {
+      if (sound === "voice") throw new Error(`No spoken warning is recorded for ${id}`);
+      return { sound, path: `/audio/${sound}.ogg` };
+    } });
+    const original = await settings.list("server");
+    await expect(settings.edit("server", "small-camps", (objective) => ({ ...objective, spoken: true }))).rejects.toThrow("small-camps");
+    expect(await settings.list("server")).toEqual(original);
+  });
+
   it("rejects impossible warning and countdown settings without changing settings", async () => {
     const settings = new ObjectiveSettings(testDb, sounds);
     const original = await settings.list("server");
@@ -86,7 +105,7 @@ describe("Deadlock objective settings", () => {
       recurring: { announce: false, warningSeconds: null, text: "Old repeat", warningText: "Old warning" },
     }] } });
     const settings = new ObjectiveSettings(testDb, sounds);
-    expect((await settings.list("old-server"))[0]).toMatchObject({ firstAt: 120, repeatEvery: 90, first: { announce: true, warningSeconds: 30, countdownSeconds: null }, recurring: { announce: false } });
+    expect((await settings.list("old-server"))[0]).toMatchObject({ spoken: false, firstAt: 120, repeatEvery: 90, first: { announce: true, warningSeconds: 30, countdownSeconds: null }, recurring: { announce: false } });
     expect((await settings.prepare("old-server"))[0]!.first).toEqual({ due: { sound: "ding", path: "/audio/ding.ogg" }, warning: { sound: "beep", path: "/audio/beep.ogg" } });
     await settings.edit("old-server", "small-camps", (objective) => ({ ...objective, first: { ...objective.first, countdownSeconds: 5 } }));
     expect((await new ObjectiveSettings(testDb, sounds).list("old-server"))[0]!.first.countdownSeconds).toBe(5);

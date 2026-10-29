@@ -52,9 +52,10 @@ export class ObjectiveSettings {
   private async prepareObjectives(objectives: readonly Objective[]): Promise<PreparedObjective[]> {
     const result: PreparedObjective[] = [];
     for (const objective of objectives.filter((item) => item.enabled)) {
+      const warning = () => objective.spoken ? this.sounds.prepare("voice", objective.id) : this.sounds.prepare("beep");
       const prepare = async (callout: Objective["first"]): Promise<PreparedCallouts> => ({
         ...(callout.announce ? { due: await this.sounds.prepare("ding") } : {}),
-        ...(callout.warningSeconds !== null ? { warning: await this.sounds.prepare("beep") } : {}),
+        ...(callout.warningSeconds !== null ? { warning: await warning() } : {}),
         ...(callout.countdownSeconds !== null ? { countdown: await this.sounds.prepare("beep") } : {}),
       });
       result.push({ objective, first: await prepare(objective.first), recurring: objective.repeatEvery !== null ? await prepare(objective.recurring) : {} });

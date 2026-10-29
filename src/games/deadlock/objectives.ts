@@ -14,6 +14,8 @@ const calloutSchema = z.union([
 export const objectiveSchema = z.strictObject({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,47}$/),
   name: z.string().trim().min(1).max(48).regex(/^[^{}\u0000-\u001f\u007f]+$/), enabled: z.boolean(),
+  // Schedules saved before spoken warnings existed keep their beeps.
+  spoken: z.boolean().default(false),
   firstAt: z.number().int().min(1).max(86400),
   repeatEvery: z.number().int().min(1).max(86400).nullable(),
   first: calloutSchema, recurring: calloutSchema,
@@ -32,9 +34,14 @@ export const objectiveSchema = z.strictObject({
   }
 });
 
+/** Stable ID derived from a display name; it also names the objective's voice clip. */
+export function objectiveId(name: string) {
+  return name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+
 export function createObjective(id: string, name: string, firstAt: number, repeatEvery: number | null = null): Objective {
   return {
-    id, name, enabled: true, firstAt, repeatEvery,
+    id, name, enabled: true, spoken: false, firstAt, repeatEvery,
     first: { announce: true, warningSeconds: firstAt > 1 ? Math.min(30, firstAt - 1) : null, countdownSeconds: firstAt > 1 ? Math.min(5, firstAt - 1) : null },
     recurring: { announce: true, warningSeconds: null, countdownSeconds: null },
   };
