@@ -21,7 +21,7 @@ describe("Deadlock match controls", () => {
     await matches.start(target);
     await expect(matches.start(target)).rejects.toThrow("already");
     await vi.advanceTimersByTimeAsync(90_000);
-    expect(heard).toEqual([["beep"]]);
+    expect(heard).toEqual([["voice"]]);
     expect(expiries).toEqual([92_000]);
     const first = (await saved.list("server"))[0]!;
     await saved.save("server", { ...first, firstAt: 180 });

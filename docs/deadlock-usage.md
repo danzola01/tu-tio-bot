@@ -14,6 +14,7 @@ Join a regular Discord voice channel and run `/deadlock start` when the match cl
 | `/deadlock status` | Show the channel, elapsed time, state, and next reminder. |
 | `/deadlock stop` | Stop the timer and all playback, then leave voice. |
 | `/deadlock schedule` | Show saved objectives for the next start. |
+| `/deadlock spoken enabled:false` | Owner-only: switch every objective's advance warnings between spoken (`true`) and beeps (`false`). |
 | `/deadlock objective show objective:sinners` | Show all saved settings and text for an objective. |
 | `/deadlock preview objective:sinners kind:first-warning` | Join your channel, play that saved callout, then leave. Requires the timer to be stopped. |
 
@@ -67,7 +68,7 @@ Add requires `name` and `first`; it creates a stable ID from the name. Use the o
 
 Times accept whole seconds, `MM:SS`, or `HH:MM:SS`, up to 24 hours. First times and intervals must be positive. Use `off` for disabling advance beeps, countdowns, or repeats. Warning and countdown lead times must be shorter than the first time or repeat interval. At most 25 objectives can be saved per server.
 
-To get only a ding, set `warning:off countdown:off announce:true`. To learn which beep is which, set `spoken:true`: the advance warning then says, for example, "Sinners coming up" (the countdown beeps and due ding stay the same). Spoken warnings follow the `warning` and `repeat-warning` lead times; with repeat warnings off, repeats stay ding-only. To get only countdown beeps, set `warning:off countdown:5 announce:false`. Recurring settings are independent. Countdown ticks are single beeps from T−N through T−1, with no tick at T.
+To get only a ding, set `warning:off countdown:off announce:true`. With `spoken:true` (the default for built-in objectives), the advance warning says, for example, "Sinners coming up"; the countdown beeps and due ding stay the same. Spoken warnings follow the `warning` and `repeat-warning` lead times; with repeat warnings off, repeats stay ding-only. To get only countdown beeps, set `warning:off countdown:5 announce:false`. Recurring settings are independent. Countdown ticks are single beeps from T−N through T−1, with no tick at T.
 
 Saving validates settings and checks the enabled sound assets before updating the database. An audio failure keeps the previous saved schedule. If another edit wins during preparation, retry the rejected edit. Edits apply on the next start. Earlier saved speech schedules keep their timings and warning/due choices; countdowns default off for those records until enabled. Old text and text-edit commands are retired.
 
@@ -75,7 +76,7 @@ Preview kinds are `first`, `first-warning`, `repeat`, `repeat-warning`, `first-c
 
 ## Spoken warnings
 
-Spoken warnings are pre-recorded clips named after objective IDs, in `assets/deadlock/voice/`. The five default objectives ship with clips; spoken warnings are off until enabled per objective. A custom objective needs its own clip first, or saving with `spoken:true` fails with instructions:
+Spoken warnings are pre-recorded clips named after objective IDs, in `assets/deadlock/voice/`. The five default objectives ship with clips and speak by default, including in schedules saved before spoken warnings existed. Use `/deadlock spoken enabled:false` to return every objective to beeps, `enabled:true` to turn them all back on, or `objective edit ... spoken:` for one objective. Custom objectives start with beeps. A custom objective needs its own clip first: saving it with `spoken:true` fails with instructions, and `/deadlock spoken enabled:true` skips it and names it.
 
 ```text
 npm run generate:voices -- "Custom reminder"

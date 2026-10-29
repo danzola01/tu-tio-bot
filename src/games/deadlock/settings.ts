@@ -42,6 +42,24 @@ export class ObjectiveSettings {
     await this.write(guildId, state.revision, state.objectives);
   }
 
+  /** Sets every objective at once. Enabling skips objectives without a recorded voice and returns their names. */
+  async setSpoken(guildId: string, spoken: boolean): Promise<string[]> {
+    const state = await this.read(guildId);
+    const skipped: string[] = [];
+    for (const objective of state.objectives) {
+      if (spoken && !objective.spoken) {
+        try { await this.sounds.prepare("voice", objective.id); } catch (error) {
+          if (!(error instanceof DeadlockError)) throw error;
+          skipped.push(objective.name);
+          continue;
+        }
+      }
+      objective.spoken = spoken;
+    }
+    await this.write(guildId, state.revision, state.objectives);
+    return skipped;
+  }
+
   private async write(guildId: string, revision: number, input: readonly Objective[]) {
     const objectives = objectiveSchema.array().max(25).parse(input);
     await this.prepareObjectives(objectives);
