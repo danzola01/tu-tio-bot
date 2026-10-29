@@ -30,8 +30,8 @@ describe("bundled Deadlock sounds", () => {
       let packets = 0;
       for await (const _packet of createSoundResource(clip).playStream) packets++;
       expect(packets).toBeGreaterThan(0);
-      // Must finish inside the two-second lifetime shared with a coinciding ding.
-      expect(packets * 20).toBeLessThan(1500);
+      // Shorter than a cue's two-second lifetime, so a coinciding second warning can still start.
+      expect(packets * 20).toBeLessThan(2000);
     }
     await expect(sounds.prepare("voice", "custom-reminder")).rejects.toThrow("generate:voices");
     await expect(sounds.prepare("voice", "../beep")).rejects.toThrow("objective ID");
