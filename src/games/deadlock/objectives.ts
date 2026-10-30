@@ -14,7 +14,7 @@ const calloutSchema = z.union([
 export const objectiveSchema = z.strictObject({
   id: z.string().regex(/^[a-z0-9][a-z0-9-]{0,47}$/),
   name: z.string().trim().min(1).max(48).regex(/^[^{}\u0000-\u001f\u007f]+$/), enabled: z.boolean(),
-  // Schedules saved before spoken warnings existed keep their beeps.
+  // A migration turned built-in objectives on; anything else saved before spoken warnings existed keeps its beeps.
   spoken: z.boolean().default(false),
   firstAt: z.number().int().min(1).max(86400),
   repeatEvery: z.number().int().min(1).max(86400).nullable(),
@@ -48,11 +48,12 @@ export function createObjective(id: string, name: string, firstAt: number, repea
 }
 
 export function defaultObjectives(): Objective[] {
-  return [
+  // Built-in objectives ship with recorded voice clips, so they speak by default.
+  return ([
     createObjective("small-camps", "Small camps", 120, 90),
     createObjective("medium-camps", "Medium camps", 300),
     createObjective("large-camps", "Large camps", 480),
     createObjective("bridge-buffs", "Bridge buffs", 300, 300),
     createObjective("sinners", "Sinners", 480, 300),
-  ];
+  ] satisfies Objective[]).map((objective) => ({ ...objective, spoken: true }));
 }

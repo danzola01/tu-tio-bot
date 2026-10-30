@@ -39,6 +39,8 @@ const data = new SlashCommandBuilder().setName("deadlock").setDescription("Deadl
   .addSubcommand((sub) => sub.setName("sync").setDescription("Correct the clock to the current game time").addStringOption((option) => option.setName("time").setDescription("Seconds, MM:SS, or HH:MM:SS").setRequired(true)))
   .addSubcommand((sub) => sub.setName("status").setDescription("Inspect the active clock"))
   .addSubcommand((sub) => sub.setName("schedule").setDescription("View the saved schedule for the next start"))
+  .addSubcommand((sub) => sub.setName("spoken").setDescription("Turn spoken warnings on or off for every objective; owner-only")
+    .addBooleanOption((option) => option.setName("enabled").setDescription("Speak objective names instead of advance beeps").setRequired(true)))
   .addSubcommand((sub) => selectObjective(sub.setName("preview").setDescription("Preview a callout in your voice channel; timer must be stopped"))
     .addStringOption((option) => option.setName("kind").setDescription("Callout to preview").addChoices(
       { name: "First due ding", value: "first" }, { name: "First advance beep", value: "first-warning" },
@@ -143,6 +145,12 @@ export function createDeadlockCommand(settings: ObjectiveSettings, matches: Dead
         const group = interaction.options.getSubcommandGroup(false);
         if (action === "schedule") {
           await interaction.editReply({ embeds: [scheduleEmbed(await settings.list(guildId))] });
+        } else if (action === "spoken") {
+          await requireOwner(interaction, ownerId);
+          const enabled = interaction.options.getBoolean("enabled", true);
+          const skipped = await settings.setSpoken(guildId, enabled);
+          const except = skipped.length ? ` except ${skipped.join(", ")}, which have no recorded voice (see npm run generate:voices)` : "";
+          await interaction.editReply(`Spoken warnings ${enabled ? "on" : "off"} for every objective${except}. Changes apply on the next start.`);
         } else if (group === "objective") {
           if (action !== "show") await requireOwner(interaction, ownerId);
           const objectives = await settings.list(guildId);

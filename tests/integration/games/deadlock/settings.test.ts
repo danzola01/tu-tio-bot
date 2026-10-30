@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { ObjectiveSettings } from "../../../../src/games/deadlock/settings.js";
 import { testDb } from "../../../setup.js";
@@ -21,7 +22,7 @@ describe("Deadlock objective settings", () => {
     const restarted = new ObjectiveSettings(testDb, sounds);
     expect((await restarted.list("server"))[0]).toMatchObject({ name: "Small jungle camps", firstAt: 180, repeatEvery: 120, first: { announce: false, warningSeconds: 15 }, recurring: { warningSeconds: 10, countdownSeconds: 3 } });
     const prepared = (await restarted.prepare("server"))[0]!;
-    expect(prepared.first).toEqual({ warning: { sound: "beep", path: "/audio/beep.ogg" }, countdown: { sound: "beep", path: "/audio/beep.ogg" } });
+    expect(prepared.first).toEqual({ warning: { sound: "voice", path: "/audio/small-camps.ogg" }, countdown: { sound: "beep", path: "/audio/beep.ogg" } });
     expect(prepared.recurring.due?.sound).toBe("ding");
     expect(prepared.recurring.countdown?.sound).toBe("beep");
     expect((await restarted.list("other-server"))[0]!.name).toBe("Small camps");
@@ -72,8 +73,8 @@ describe("Deadlock objective settings", () => {
 
   it("prepares the objective's voice clip for every advance warning when spoken", async () => {
     const settings = new ObjectiveSettings(testDb, sounds);
-    expect((await settings.list("server")).every((objective) => !objective.spoken)).toBe(true);
-    await settings.edit("server", "sinners", (objective) => ({ ...objective, spoken: true, recurring: { ...objective.recurring, warningSeconds: 30 } }));
+    expect((await settings.list("server")).every((objective) => objective.spoken)).toBe(true);
+    await settings.edit("server", "sinners", (objective) => ({ ...objective, recurring: { ...objective.recurring, warningSeconds: 30 } }));
     const sinners = (await settings.prepare("server")).find((item) => item.objective.id === "sinners")!;
     expect(sinners.first).toMatchObject({ warning: { sound: "voice", path: "/audio/sinners.ogg" }, countdown: { sound: "beep" }, due: { sound: "ding" } });
     expect(sinners.recurring.warning).toEqual({ sound: "voice", path: "/audio/sinners.ogg" });
@@ -87,6 +88,19 @@ describe("Deadlock objective settings", () => {
     const original = await settings.list("server");
     await expect(settings.edit("server", "small-camps", (objective) => ({ ...objective, spoken: true }))).rejects.toThrow("small-camps");
     expect(await settings.list("server")).toEqual(original);
+  });
+
+  it("migrates saved built-in objectives to spoken warnings and leaves custom objectives alone", async () => {
+    const saved = (id: string, extra: object = {}) => ({
+      id, name: id, enabled: true, firstAt: 120, repeatEvery: null, ...extra,
+      first: { announce: true, warningSeconds: 30, countdownSeconds: 5 }, recurring: { announce: true, warningSeconds: null, countdownSeconds: null },
+    });
+    await testDb.deadlockSchedule.create({ data: { guildId: "saved-server", revision: 4, objectives: [saved("sinners"), saved("urn"), saved("small-camps", { spoken: false })] } });
+    const migration = new URL("../../../../prisma/migrations/20261029120000_default_spoken_warnings/migration.sql", import.meta.url);
+    await testDb.$executeRawUnsafe(readFileSync(migration, "utf8"));
+    const settings = new ObjectiveSettings(testDb, sounds);
+    expect((await settings.list("saved-server")).map(({ id, spoken }) => [id, spoken])).toEqual([["sinners", true], ["urn", false], ["small-camps", true]]);
+    expect((await testDb.deadlockSchedule.findUniqueOrThrow({ where: { guildId: "saved-server" } })).revision).toBe(5);
   });
 
   it("rejects impossible warning and countdown settings without changing settings", async () => {

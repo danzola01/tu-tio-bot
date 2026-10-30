@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
 import { ChannelType, Events, type AutocompleteInteraction, type Client, type VoiceState, type ChatInputCommandInteraction } from "discord.js";
+import { DeadlockError } from "../../../../src/games/deadlock/errors.js";
 import { createDeadlockModule } from "../../../../src/games/deadlock/index.js";
 import { testDb } from "../../../setup.js";
 
@@ -63,9 +64,37 @@ describe("Deadlock Discord commands", () => {
     expect(saved.embeds[0]!.toJSON().fields.some((field) => field.name.includes("Small camps"))).toBe(false);
   });
 
+  it("speaks built-in warnings by default and toggles every objective with one owner-only command", async () => {
+    const game = createDeadlockModule(testDb, { ownerId: "owner", sounds: { prepare: async (sound, id) => {
+      if (sound === "voice" && id === "urn") throw new DeadlockError("No spoken warning is recorded for urn.");
+      return { sound, path: `/${id ?? sound}.ogg` };
+    } } });
+    const command = game.commands[0]!;
+    const fields = async () => {
+      const schedule = commandCall("schedule");
+      await command.execute(schedule.interaction);
+      const saved = schedule.editReply.mock.calls[0]![0] as { embeds: { toJSON(): { fields: { name: string; value: string }[] } }[] };
+      return Object.fromEntries(saved.embeds[0]!.toJSON().fields.map((field) => [field.name.replace(/^On · /, ""), field.value]));
+    };
+    expect(await fields()).toMatchObject({ "Small camps": expect.stringContaining("Voice 30s"), Sinners: expect.stringContaining("Voice 30s") });
+    await command.execute(commandCall("add", { name: "Urn", first: "10:00" }, "owner", "objective").interaction);
+    const denied = commandCall("spoken", { enabled: false }, "friend");
+    await command.execute(denied.interaction);
+    expect(denied.editReply).toHaveBeenCalledWith(expect.stringContaining("Only the bot owner"));
+    const off = commandCall("spoken", { enabled: false }, "owner");
+    await command.execute(off.interaction);
+    expect(off.editReply).toHaveBeenCalledWith("Spoken warnings off for every objective. Changes apply on the next start.");
+    expect(Object.values(await fields()).every((value) => value.includes("Beep 30s"))).toBe(true);
+    const on = commandCall("spoken", { enabled: true }, "owner");
+    await command.execute(on.interaction);
+    expect(on.editReply).toHaveBeenCalledWith(expect.stringContaining("except Urn, which have no recorded voice"));
+    expect(await fields()).toMatchObject({ "Small camps": expect.stringContaining("Voice 30s"), Urn: expect.stringContaining("Beep 30s") });
+  });
+
   it("turns spoken warnings on per objective and shows them in the schedule", async () => {
     const game = createDeadlockModule(testDb, { ownerId: "owner", sounds: { prepare: async (sound, id) => ({ sound, path: `/${id ?? sound}.ogg` }) } });
     const command = game.commands[0]!;
+    await command.execute(commandCall("edit", { objective: "small-camps", spoken: false }, "owner", "objective").interaction);
     const edit = commandCall("edit", { objective: "sinners", spoken: true }, "owner", "objective");
     await command.execute(edit.interaction);
     expect(edit.editReply).toHaveBeenCalledWith(expect.stringContaining("next start"));

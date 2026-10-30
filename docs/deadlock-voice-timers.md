@@ -1,6 +1,6 @@
 # Deadlock sound timers
 
-Status: implemented design, revised October 26, 2026 to replace spoken announcements with beeps and dings, and October 28, 2026 to add optional pre-recorded spoken warnings. See the [command guide](deadlock-usage.md), [architecture](architecture.md), and [deployment prerequisites](deployment.md). Live Discord/Oracle voice playback still needs deployment validation.
+Status: implemented design, revised October 26, 2026 to replace spoken announcements with beeps and dings, October 28, 2026 to add pre-recorded spoken warnings, and October 29, 2026 to make them the default for built-in objectives. See the [command guide](deadlock-usage.md), [architecture](architecture.md), and [deployment prerequisites](deployment.md). Live Discord/Oracle voice playback still needs deployment validation.
 
 ## Purpose
 
@@ -39,7 +39,7 @@ These defaults were accepted as part of the design and can be edited in Discord:
 - **Bridge buffs:** first at 5:00; repeat every five minutes, at 10:00, 15:00, and so on.
 - **Sinners:** first at 8:00; reminders every five minutes afterward, starting at 13:00.
 
-First reminders default to a 30-second advance beep, a five-second countdown, and a due ding. For a 2:00 objective, this means a beep at 1:30, one beep each at 1:55–1:59, and a ding at 2:00. Repeats default to a due ding only. All three parts are independently optional for both first and repeat reminders. Coalesce simultaneous beeps into one; a due ding takes priority over a beep at the same instant. Spoken warnings are off by default; when enabled, coinciding spoken warnings each play after any ding instead of a beep. New objectives use these defaults. Earlier saved speech schedules preserve their existing advance/due settings and start with countdowns off until explicitly enabled.
+First reminders default to a 30-second advance beep, a five-second countdown, and a due ding. For a 2:00 objective, this means a beep at 1:30, one beep each at 1:55–1:59, and a ding at 2:00. Repeats default to a due ding only. All three parts are independently optional for both first and repeat reminders. Coalesce simultaneous beeps into one; a due ding takes priority over a beep at the same instant. Built-in objectives use spoken warnings by default; custom objectives start with beeps. Coinciding spoken warnings each play after any ding instead of a beep. One owner-only command switches every objective between spoken warnings and beeps. New objectives use these defaults. Earlier saved speech schedules preserve their existing advance/due settings and start with countdowns off until explicitly enabled.
 
 ## Clock and voice behavior
 

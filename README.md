@@ -6,7 +6,7 @@ A Discord bot for our server, with independent Overwatch match tracking and Dead
 
 Use **Node 24.22.1 or a newer Node 24 patch**, with npm. The pinned version is in [.node-version](.node-version) and [.nvmrc](.nvmrc). This baseline includes the [October 21, 2026 Node security release](https://nodejs.org/en/blog/release/v24.22.1).
 
-Deadlock uses bundled beep and ding sounds, plus optional pre-recorded spoken warnings that name each default objective. No speech engine, FFmpeg, or writable audio cache is required on the bot host. Run `npm run check:audio` to verify the Opus assets locally.
+Deadlock uses bundled beep and ding sounds, plus pre-recorded spoken warnings that name each default objective (on by default). No speech engine, FFmpeg, or writable audio cache is required on the bot host. Run `npm run check:audio` to verify the Opus assets locally.
 
 ## Setup
 
@@ -63,7 +63,7 @@ Join voice, then use `/deadlock start`. First reminders get an advance beep 30 s
 - `/deadlock stop` stops playback and leaves voice. The bot also leaves when no humans remain.
 - `/deadlock schedule` shows saved settings; `/deadlock preview objective:sinners` plays a sample while the timer is stopped.
 
-Only the bot owner can add, edit, or remove saved objectives. For example, `/deadlock objective edit objective:small-camps warning:30 countdown:5 announce:true`. Edits apply on the next start. See the [command and settings guide](docs/deadlock-usage.md) for every option and the default schedule. Add `spoken:true` to hear the objective's name ("Sinners coming up") instead of its advance beep. Repeated camp and Sinner sounds are farming reminders, not detected respawns.
+Only the bot owner can add, edit, or remove saved objectives. For example, `/deadlock objective edit objective:small-camps warning:30 countdown:5 announce:true`. Edits apply on the next start. See the [command and settings guide](docs/deadlock-usage.md) for every option and the default schedule. Built-in objectives say their name ("Sinners coming up") instead of an advance beep; `/deadlock spoken enabled:false` switches every objective back to beeps. Repeated camp and Sinner sounds are farming reminders, not detected respawns.
 
 ## Development
 
