@@ -9,6 +9,7 @@ const envSchema = z.object({
   CLIENT_ID: z.string().min(1),
   DATABASE_URL: z.string().min(1),
   BOT_OWNER_ID: z.string().regex(/^\d{17,20}$/).optional(),
+  DEADLOCK_START_PROMPT: z.enum(["true", "false"]).default("false"),
 });
 
 const env = envSchema.safeParse(process.env);
@@ -22,5 +23,6 @@ export const config = {
   ...env.data,
   games: { deadlock: {
     ...(env.data.BOT_OWNER_ID ? { ownerId: env.data.BOT_OWNER_ID } : {}),
+    startPrompt: env.data.DEADLOCK_START_PROMPT === "true",
   } },
 };

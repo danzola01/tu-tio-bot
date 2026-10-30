@@ -2,6 +2,12 @@
 
 Join a regular Discord voice channel and run `/deadlock start` when the match clock starts. This is a manually synchronized reminder clock. It does not watch the game, listen to speech, or detect objective clears.
 
+## Start clock button
+
+When the bot runs with `DEADLOCK_START_PROMPT=true`, it notices when someone in a voice channel launches Deadlock (or joins voice while playing) and posts a **Start clock** button in that voice channel's chat, mentioning them. Anyone in a voice channel can press it when the in-game timer starts; the clock starts at 0:00 in the presser's channel, and `/deadlock sync` corrects a late press. One prompt is offered per server at a time; it is removed after 15 minutes, and none is offered while a clock is running.
+
+Discord only reports that the game is open, not when a match begins, so the press stays manual. Detection needs the player's Discord activity status to show detected games (User Settings → Activity Privacy). The mention notifies the player, so the button can be pressed from Discord on a phone without leaving the game; whether Discord's in-game overlay can press message buttons has not been verified.
+
 ## Match controls
 
 | Command | Behavior |

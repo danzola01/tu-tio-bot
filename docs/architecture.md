@@ -67,6 +67,8 @@ Objective callout settings contain independent due-ding, advance-warning, and co
 
 Deadlock's module declares `GuildVoiceStates` and passes bot-channel observations to the match manager. Each attempt tracks its own join acknowledgement: earlier leave acknowledgements are ignored before it joins, while departures after that acknowledgement cancel the attempt even during the connection handshake. Human membership changes stop the run when no humans remain. The voice adapter bounds every transition out of Ready with a 20-second recovery deadline, including direct Signalling/Connecting transitions. It never receives users' audio. Active clocks are deliberately in memory; after a bot restart, start again with the current match time.
 
+With `startPrompt` enabled, the module also declares `GuildPresences`. `StartPrompts` watches for a member in voice whose detected activity becomes Deadlock and posts one Start clock button per guild in the voice channel's chat; the module routes that button's `deadlock:start` interaction itself, since shared routing handles only slash commands. Pending prompts live in memory and expire after 15 minutes.
+
 ## Data and upgrades
 
 `Match` and `MatchPlayer` are legacy **Overwatch** tables, despite their generic names. Their table names, fields, and migration history remain unchanged. `DeadlockSchedule` is a separate game-owned model. A new game adds clearly named models and its own migration; it must not reuse the Overwatch match tables or add fake match records for timers.

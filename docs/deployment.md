@@ -51,6 +51,8 @@ Run `npm run check:audio` as the service account. It confirms every default obje
 
 Grant the bot View Channel, Connect, and Speak in the regular voice channel. `GuildVoiceStates` is requested by the game module; it does not require enabling a privileged voice intent in the portal. Allow the outbound UDP connectivity used by Discord voice. Set `BOT_OWNER_ID` if schedule editing should use an explicit Discord user ID; otherwise application/team ownership is used.
 
+The optional Start clock button (`DEADLOCK_START_PROMPT=true`) requests the privileged `GuildPresences` intent. Enable **Presence Intent** in the Developer Portal (Bot → Privileged Gateway Intents) before setting the variable: Discord rejects the login with "Used disallowed intents" otherwise, and the service will not start. The bot also needs Send Messages in the voice channel's chat. Leave the variable unset to keep the bot on non-presence intents.
+
 After command registration/restart, join voice and run `/deadlock preview objective:sinners`. Confirm join, a distinct ding, and leave. Start at `time:1:25` and verify the 1:30 advance beep, the 1:55–1:59 countdown beeps, and the 2:00 ding. Check pause/resume, backward sync, stop, and leaving when the last human leaves. A restart requires manually starting at the current game time. The first live Discord/Oracle smoke test remains unperformed; local audio validation does not establish network or permission readiness.
 
 See the [usage guide](deadlock-usage.md) for all commands and editable settings.

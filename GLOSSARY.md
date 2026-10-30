@@ -24,6 +24,10 @@ A Deadlock camp or other game feature for which players want scheduled reminders
 **Powerup**:
 A timed buff pickup at a bridge location in Deadlock, also called a "bridge buff" by the players.
 
+**Start prompt**:
+A Start clock button the bot posts in a voice channel's chat when someone there launches Deadlock. Pressing it starts the match clock at 0:00; it does not detect the match itself.
+_Avoid_: Auto-start
+
 **Camp check**:
 A reminder to consider farming a camp, without asserting that the camp has respawned.
 

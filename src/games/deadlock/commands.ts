@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { ChannelType, EmbedBuilder, InteractionContextType, MessageFlags, PermissionFlagsBits, SlashCommandBuilder, type ChatInputCommandInteraction, type SlashCommandSubcommandBuilder } from "discord.js";
+import { ChannelType, EmbedBuilder, InteractionContextType, MessageFlags, PermissionFlagsBits, SlashCommandBuilder, type ChatInputCommandInteraction, type Guild, type SlashCommandSubcommandBuilder, type User } from "discord.js";
 import { z, ZodError } from "zod";
 import type { Command } from "../../bot/types.js";
 import { logger } from "../../infra/logger.js";
@@ -110,7 +110,7 @@ async function requireOwner(interaction: ChatInputCommandInteraction, configured
   if (interaction.user.id !== id) throw new DeadlockError("Only the bot owner can edit the saved schedule.");
 }
 
-async function voiceTarget(interaction: ChatInputCommandInteraction): Promise<VoiceTarget> {
+export async function voiceTarget(interaction: { guild: Guild | null; user: User }): Promise<VoiceTarget> {
   const guild = interaction.guild;
   const channel = guild?.voiceStates.cache.get(interaction.user.id)?.channel;
   if (!guild || !channel || channel.type !== ChannelType.GuildVoice) throw new DeadlockError("Join a regular voice channel before starting or previewing.");

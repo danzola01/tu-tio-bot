@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
-import { ChannelType, Events, type AutocompleteInteraction, type Client, type VoiceState, type ChatInputCommandInteraction } from "discord.js";
+import { ActivityType, ChannelType, Events, GatewayIntentBits, type AutocompleteInteraction, type Client, type Interaction, type Presence, type VoiceState, type ChatInputCommandInteraction } from "discord.js";
 import { DeadlockError } from "../../../../src/games/deadlock/errors.js";
 import { createDeadlockModule } from "../../../../src/games/deadlock/index.js";
 import { testDb } from "../../../setup.js";
@@ -155,6 +155,30 @@ describe("Deadlock Discord commands", () => {
     expect(closed).toBe(true);
     await game.dispose!();
     expect(client.listenerCount(Events.VoiceStateUpdate)).toBe(0);
+  });
+
+  it("offers a Start clock button only when enabled, and starts the clock from it", async () => {
+    expect(createDeadlockModule(testDb).intents).not.toContain(GatewayIntentBits.GuildPresences);
+    const game = createDeadlockModule(testDb, { startPrompt: true, sounds: { prepare: async (sound) => ({ sound, path: "/audio.ogg" }) }, voice: { connect: async () => ({ play: async () => {}, cancel() {}, close() {} }) } });
+    expect(game.intents).toContain(GatewayIntentBits.GuildPresences);
+    const client = Object.assign(new EventEmitter(), { user: { id: "bot" } }) as unknown as Client;
+    game.attach!(client);
+    const message = { delete: vi.fn(async () => {}) };
+    const channel = { id: "voice", type: ChannelType.GuildVoice, send: vi.fn(async (_options: unknown) => message), permissionsFor: () => ({ has: () => true }) };
+    const guild = { id: "server", members: { me: { id: "bot" } }, voiceStates: { cache: new Map([["friend", { channel }]]) }, voiceAdapterCreator: () => ({ sendPayload: () => true, destroy() {} }) };
+    const member = { id: "friend", guild, user: { bot: false }, voice: { channel } };
+    const playing = { member, activities: [{ type: ActivityType.Playing, name: "Deadlock" }] } as unknown as Presence;
+    client.emit(Events.PresenceUpdate, playing, playing);
+    client.emit(Events.PresenceUpdate, null, playing);
+    await vi.waitFor(() => expect(channel.send).toHaveBeenCalledOnce());
+    const editReply = vi.fn(async (_options: unknown) => {});
+    client.emit(Events.InteractionCreate, { isButton: () => true, customId: "deadlock:start", guild, channel, user: { id: "friend" }, deferUpdate: async () => {}, editReply } as unknown as Interaction);
+    await vi.waitFor(() => expect(editReply).toHaveBeenCalledWith(expect.objectContaining({ components: [] })));
+    const status = commandCall("status", {}, "friend");
+    await game.commands[0]!.execute(status.interaction);
+    expect(status.editReply).toHaveBeenCalledWith(expect.stringContaining("Running"));
+    await game.dispose!();
+    expect(client.listenerCount(Events.PresenceUpdate) + client.listenerCount(Events.InteractionCreate)).toBe(0);
   });
 
   it("refuses to connect without voice permissions and offers objective autocomplete", async () => {
