@@ -24,7 +24,7 @@ verification are recorded separately in Artemis Manager's Tu Tio Bot deployment 
 - Public response headed by the enemy hero and a brief description of the threat being countered.
 - Group item recommendations by purpose, with a small item picture, full name, why it helps, when to use it, and important limitations.
 - Make the main response useful during a respawn timer without requiring a click for the core advice. Use “More options” only for longer alternatives, preserving the grouping and qualifications.
-- Show source attribution when established and the reviewed-patch label. The supplied transcript's URL and patch remain unknown.
+- Present recommendations directly in the bot's voice, retaining matchup conditions and the reviewed-patch label. Keep source attribution in the content metadata and maintenance documentation rather than the Discord response. The supplied transcript's URL and patch remain unknown.
 - Treat unclear transcript wording as a content-review issue rather than inventing mechanics, canonical names, or rankings. Patch-note analysis can identify affected advice; changing the reviewed-patch label requires an actual review, not merely receiving new notes.
 - When a hero has no authored guide, explain that coverage is unavailable rather than generating advice during the lookup.
 
@@ -58,7 +58,7 @@ artwork availability still require verification before choosing the integration.
 The implementation includes 38 heroes and 163 situational item recommendations.
 `src/games/deadlock/counters/guides.ts` is the authoritative content. Each entry
 has a hero, aliases, summary, recommendations, optional matchup warning, reviewed
-patch, and source attribution. Keep advice grouped by purpose and preserve its
+patch, and internal source attribution. Keep advice grouped by purpose and preserve its
 conditions. Initial guides have `reviewedPatch: null`; the source URL is absent
 rather than guessed. Update source metadata when the video is identified.
 
@@ -122,7 +122,7 @@ with `npm run deploy`, and restarts the bot. Text channels need Embed Links and
 Attach Files permissions, plus permission to send messages.
 
 `src/games/deadlock/counters/messages.ts` renders four item cards per page, with
-source/review information and warnings on every page. Buttons carry a version,
+review information and warnings on every page. Buttons carry a version,
 hero ID, and page number; dispatch is stateless and shared by channel readers.
 Navigation replaces the original message and its attachments. Unsupported or
 out-of-range buttons receive a private explanation. No timer state is accessed.
