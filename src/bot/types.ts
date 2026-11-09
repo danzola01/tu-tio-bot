@@ -1,5 +1,6 @@
 import type {
   AutocompleteInteraction,
+  ButtonInteraction,
   ChatInputCommandInteraction,
   Client,
   GatewayIntentBits,
@@ -13,6 +14,7 @@ export interface Command {
   };
   execute(interaction: ChatInputCommandInteraction): Promise<void>;
   autocomplete?(interaction: AutocompleteInteraction): Promise<void>;
+  button?(interaction: ButtonInteraction): Promise<void>;
 }
 
 export interface GameModule {

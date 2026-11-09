@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { EventEmitter } from "node:events";
-import { ChannelType, Events, type AutocompleteInteraction, type Client, type VoiceState, type ChatInputCommandInteraction } from "discord.js";
+import { ChannelType, Events, MessageFlags, type AutocompleteInteraction, type ButtonInteraction, type Client, type VoiceState, type ChatInputCommandInteraction } from "discord.js";
 import { DeadlockError } from "../../../../src/games/deadlock/errors.js";
 import { createDeadlockModule } from "../../../../src/games/deadlock/index.js";
 import { testDb } from "../../../setup.js";
@@ -170,8 +170,56 @@ describe("Deadlock Discord commands", () => {
     expect(start.editReply).toHaveBeenCalledWith(expect.stringContaining("Connect"));
     expect(joined).toBe(false);
     const respond = vi.fn(async (_choices: unknown) => {});
-    await command.autocomplete!({ guildId: "server", options: { getFocused: () => "sin" }, respond } as unknown as AutocompleteInteraction);
+    await command.autocomplete!({ guildId: "server", options: { getFocused: () => "sin", getSubcommand: () => "preview" }, respond } as unknown as AutocompleteInteraction);
     expect(respond).toHaveBeenCalledWith([{ name: "Sinners", value: "sinners" }]);
+    await game.dispose!();
+  });
+
+  it("shares counter guides without voice or schedule access and keeps other commands private", async () => {
+    const connect = vi.fn(async () => { throw new Error("Counter guides must not join voice"); });
+    const game = createDeadlockModule(testDb, { voice: { connect } });
+    const command = game.commands[0]!;
+    const counter = commandCall("counter", { hero: "Abrams" }, "friend");
+    await command.execute(counter.interaction);
+    expect(counter.interaction.deferReply).toHaveBeenCalledWith({});
+    const payload = counter.editReply.mock.calls[0]![0] as { embeds: { toJSON(): { title: string } }[]; files: unknown[] };
+    expect(payload.embeds[0]!.toJSON().title).toBe("Counterbuying: Abrams");
+    expect(payload.files.length).toBeGreaterThan(0);
+    expect(connect).not.toHaveBeenCalled();
+    const status = commandCall("status");
+    await command.execute(status.interaction);
+    expect(status.interaction.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
+    const unknown = commandCall("counter", { hero: "Unknown hero" });
+    await command.execute(unknown.interaction);
+    expect(unknown.editReply).toHaveBeenCalledWith(expect.stringContaining("No counterbuying guide"));
+    await game.dispose!();
+  });
+
+  it("autocompletes counter heroes without treating them as objectives", async () => {
+    const game = createDeadlockModule(testDb);
+    const respond = vi.fn(async () => {});
+    await game.commands[0]!.autocomplete!({
+      guildId: "server", options: { getFocused: () => "viper", getSubcommand: () => "counter" }, respond,
+    } as unknown as AutocompleteInteraction);
+    expect(respond).toHaveBeenCalledWith([{ name: "Vyper", value: "vyper" }]);
+    await game.dispose!();
+  });
+
+  it("allows friends to turn public guide pages and rejects stale buttons", async () => {
+    const game = createDeadlockModule(testDb);
+    const button = {
+      customId: "deadlock:counter:v1:abrams:1", user: { id: "friend" },
+      deferUpdate: vi.fn(async () => {}), editReply: vi.fn(async () => {}), reply: vi.fn(async () => {}),
+    };
+    await game.commands[0]!.button!(button as unknown as ButtonInteraction);
+    expect(button.deferUpdate).toHaveBeenCalledOnce();
+    expect(button.editReply).toHaveBeenCalledWith(expect.objectContaining({ attachments: [], files: expect.any(Array) }));
+    for (const customId of ["deadlock:counter:v0:abrams:1", "deadlock:counter:v1:unknown:0", "deadlock:counter:v1:abrams:999"]) {
+      button.customId = customId;
+      await game.commands[0]!.button!(button as unknown as ButtonInteraction);
+    }
+    expect(button.reply).toHaveBeenCalledTimes(3);
+    expect(button.reply).toHaveBeenCalledWith(expect.objectContaining({ flags: MessageFlags.Ephemeral }));
     await game.dispose!();
   });
 

@@ -1,6 +1,6 @@
 # Tu Tio Bot
 
-A Discord bot for our server, with independent Overwatch match tracking and Deadlock sound reminders.
+A Discord bot for our server, with independent Overwatch match tracking, Deadlock counterbuying guides, and Deadlock sound reminders.
 
 ## Requirements
 
@@ -53,6 +53,12 @@ Existing command names and options are preserved:
 - `/session`: results from the last 12 hours.
 
 Map, hero, and member autocomplete remain available. Charts use the external QuickChart renderer.
+
+## Deadlock counterbuying
+
+Use `/deadlock counter hero:Abrams` to share item recommendations in the current channel. Guides explain why and when to buy each item, include bundled pictures, and retain matchup warnings. Anyone can use **More options** and **Back** to browse the public guide. No voice connection or active timer is required.
+
+The initial 38 guides summarize a supplied YouTube transcript and are labeled **Patch unverified**. They are manually maintained; the bot does not generate advice or fetch game data during a lookup. See [guide content and maintenance](docs/deadlock-counter-guides.md). Grant **Embed Links** and **Attach Files** in the text channel, in addition to permission to send messages.
 
 ## Deadlock sound reminders
 

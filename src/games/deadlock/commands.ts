@@ -9,6 +9,8 @@ import { createObjective, objectiveId } from "./objectives.js";
 import type { ObjectiveSettings } from "./settings.js";
 import { formatTime, parseTime } from "./time.js";
 import type { Objective, VoiceTarget } from "./types.js";
+import { counterHeroChoices, findCounterGuide } from "./counters/guides.js";
+import { counterGuideMessage, counterGuidePageCount } from "./counters/messages.js";
 
 function objectiveOptions(builder: SlashCommandSubcommandBuilder, required: boolean) {
   builder
@@ -30,8 +32,10 @@ function objectiveOptions(builder: SlashCommandSubcommandBuilder, required: bool
 const selectObjective = (builder: SlashCommandSubcommandBuilder) => builder.addStringOption((option) =>
   option.setName("objective").setDescription("Objective to select").setRequired(true).setAutocomplete(true));
 
-const data = new SlashCommandBuilder().setName("deadlock").setDescription("Deadlock sound reminders and objective settings")
+const data = new SlashCommandBuilder().setName("deadlock").setDescription("Deadlock counterbuying guides, sound reminders, and objective settings")
   .setContexts(InteractionContextType.Guild)
+  .addSubcommand((sub) => sub.setName("counter").setDescription("Item recommendations against an enemy hero; shared in this channel")
+    .addStringOption((option) => option.setName("hero").setDescription("Enemy hero").setRequired(true).setMaxLength(64).setAutocomplete(true)))
   .addSubcommand((sub) => sub.setName("start").setDescription("Join your voice channel and start the clock").addStringOption((option) => option.setName("time").setDescription("Current game time for a late start; default 0:00")))
   .addSubcommand((sub) => sub.setName("stop").setDescription("Stop playback and leave voice"))
   .addSubcommand((sub) => sub.setName("pause").setDescription("Pause the match clock and playback"))
@@ -133,17 +137,36 @@ export function createDeadlockCommand(settings: ObjectiveSettings, matches: Dead
     data,
     async autocomplete(interaction) {
       const query = interaction.options.getFocused().toLowerCase();
+      if (interaction.options.getSubcommand() === "counter") {
+        await interaction.respond(counterHeroChoices(query));
+        return;
+      }
       const objectives = await settings.list(interaction.guildId!);
       await interaction.respond(objectives.filter((objective) => `${objective.name} ${objective.id}`.toLowerCase().includes(query)).slice(0, 25).map((objective) => ({ name: objective.name, value: objective.id })));
     },
+    async button(interaction) {
+      const match = /^deadlock:counter:v1:([a-z0-9]+):(\d{1,3})$/.exec(interaction.customId);
+      const guide = match && findCounterGuide(match[1]!);
+      const page = match ? Number(match[2]) : -1;
+      if (!guide || page < 0 || page >= counterGuidePageCount(guide)) {
+        await interaction.reply({ content: "This guide page is no longer available. Run /deadlock counter again.", flags: MessageFlags.Ephemeral });
+        return;
+      }
+      await interaction.deferUpdate();
+      await interaction.editReply({ ...counterGuideMessage(guide, page), attachments: [] });
+    },
     async execute(interaction) {
-      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      const action = interaction.options.getSubcommand();
+      await interaction.deferReply(action === "counter" ? {} : { flags: MessageFlags.Ephemeral });
       try {
         const guildId = interaction.guildId;
         if (!guildId) throw new DeadlockError("Use this command in the server.");
-        const action = interaction.options.getSubcommand();
         const group = interaction.options.getSubcommandGroup(false);
-        if (action === "schedule") {
+        if (action === "counter") {
+          const guide = findCounterGuide(interaction.options.getString("hero", true));
+          if (!guide) throw new DeadlockError("No counterbuying guide is available for that hero yet. Choose a hero from autocomplete.");
+          await interaction.editReply(counterGuideMessage(guide));
+        } else if (action === "schedule") {
           await interaction.editReply({ embeds: [scheduleEmbed(await settings.list(guildId))] });
         } else if (action === "spoken") {
           await requireOwner(interaction, ownerId);

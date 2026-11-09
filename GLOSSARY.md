@@ -52,3 +52,14 @@ A sequence of one-second beeps immediately before a scheduled reminder is due.
 
 **Due ding**:
 The distinct sound marking a reminder’s scheduled match time, without asserting actual objective availability.
+
+## Deadlock counter guides
+
+**Counter guide**:
+A reference for counterbuying against a particular enemy hero, including situational item recommendations and their reasons.
+
+**Counterbuying**:
+Choosing items to limit an enemy's effectiveness or survive their threats, with attention to timing, builds, and team roles.
+
+**Reviewed patch**:
+The Deadlock update against which a counter guide was last checked. It identifies the scope of that review, without guaranteeing the advice remains correct after later updates.

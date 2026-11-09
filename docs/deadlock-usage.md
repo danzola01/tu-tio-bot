@@ -1,4 +1,4 @@
-# Deadlock sound reminders
+# Deadlock commands
 
 Join a regular Discord voice channel and run `/deadlock start` when the match clock starts. This is a manually synchronized reminder clock. It does not watch the game, listen to speech, or detect objective clears.
 
@@ -23,6 +23,18 @@ Clock controls, inspection, and previews are available to server members. Only o
 Forward sync skips everything up to the new time, without replaying missed callouts. Backward sync re-arms callouts strictly after the new time, including previously played ones. Rewinding from 2:10 to 1:30 therefore allows the 2:00 ding to play again. A callout exactly at the sync time is skipped. Long event-loop or playback delays discard stale reminders instead of building a backlog.
 
 The bot leaves when no humans remain, when moved/kicked, or after a permanent voice failure. A restart loses the active clock; use `start time:...` to recover. Saved settings survive. Brief voice reconnects keep the clock moving and skip announcements that cannot be played.
+
+## Counterbuying guides
+
+`/deadlock counter hero:Abrams` posts publicly in the channel where you invoke it. Select an enemy hero using autocomplete; aliases such as Viper/Vyper, Holiday/Holliday, Gray/Grey Talon, and Mo and Krill are accepted.
+
+Recommendations are grouped by purpose, with item pictures, explanations, timing notes, and matchup warnings. Each page shows up to four items; **More options** and **Back** replace the public message's page, so everyone sees the same page. Friends can navigate it too, and the buttons keep working across bot restarts. Missing coverage produces an unavailable-guide message rather than generated advice.
+
+No active timer, voice connection, or owner permission is needed. This lookup is public; existing timer and objective command replies remain private. The bot needs **Embed Links** and **Attach Files**, plus permission to send messages in the invoking channel.
+
+Initial advice is marked **Patch unverified** because the source video's URL and patch have not been established. Reviewed guides display the reviewed patch and explain that later updates have not been reviewed. Treat alternatives as situational choices, not a complete shopping list.
+
+See [counter guide maintenance](deadlock-counter-guides.md) for source boundaries, editing, and artwork updates.
 
 ## Defaults
 

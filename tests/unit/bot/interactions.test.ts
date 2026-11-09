@@ -12,6 +12,7 @@ function fixture({ guild = true, autocomplete = false, deferred = false } = {}) 
   const interaction = {
     commandName: "example", inGuild: () => guild,
     isChatInputCommand: () => !autocomplete, isAutocomplete: () => autocomplete,
+    isButton: () => false,
     deferred, replied: false, reply, followUp, respond,
   } as unknown as Interaction;
   return { interaction, reply, followUp, respond };
@@ -39,6 +40,25 @@ describe("shared Discord interaction handling", () => {
     const { interaction, reply } = fixture({ guild: false });
     await createInteractionHandler(createCommandRegistry([]))(interaction);
     expect(reply).toHaveBeenCalledWith(expect.objectContaining({ flags: MessageFlags.Ephemeral, content: "Use this command in the server." }));
+  });
+
+  it("routes persistent guide buttons to the owning command, including after a restart", async () => {
+    const button = vi.fn(async () => {});
+    const registry = createCommandRegistry([{ id: "example", intents: [], commands: [{
+      data: new SlashCommandBuilder().setName("example").setDescription("Example"),
+      execute: vi.fn(async () => {}), button,
+    }] }]);
+    const interaction = {
+      customId: "example:counter:v1:abrams:1", inGuild: () => true,
+      isChatInputCommand: () => false, isAutocomplete: () => false, isButton: () => true,
+    } as unknown as Interaction;
+    await createInteractionHandler(registry)(interaction);
+    expect(button).toHaveBeenCalledWith(interaction);
+    button.mockRejectedValueOnce(new Error("Discord unavailable"));
+    const failure = fixture({ deferred: true });
+    Object.assign(failure.interaction, { isChatInputCommand: () => false, isButton: () => true, customId: "example:counter:v1:abrams:1" });
+    await createInteractionHandler(registry)(failure.interaction);
+    expect(failure.followUp).toHaveBeenCalledWith(expect.objectContaining({ flags: MessageFlags.Ephemeral }));
   });
 
   it("responds to stale commands and unsupported autocomplete", async () => {
