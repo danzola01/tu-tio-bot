@@ -18,7 +18,7 @@ export function counterGuideMessage(guide: CounterGuide, page = 0) {
     .setFooter({ text: `${review} · ${page + 1}/${pages}` });
   if (guide.warning) heading.addFields({ name: "Important", value: guide.warning });
   if (guide.hero !== "Haze" && guide.recommendations.some((entry) => entry.item === "indomitable")) {
-    heading.addFields({ name: "Duel or team fight?", value: "Indomitable is usually a duel pick. Prefer Unstoppable when multiple enemies can consume its protection." });
+    heading.addFields({ name: "Duel or team fight?", value: "Indomitable is usually a duel pick. Prefer Unstoppable when other enemies could trigger Indomitable before the ability you need to block." });
   }
   if (guide.recommendations.some((entry) => entry.item === "disarming-hex") && guide.recommendations.some((entry) => entry.item === "metal-skin")) {
     heading.addFields({ name: "Your role matters", value: "If you're the carry under direct threat, prioritize personal survival with Metal Skin. Have a safer teammate apply Disarming Hex." });

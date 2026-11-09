@@ -46,13 +46,13 @@ export const counterGuides: readonly CounterGuide[] = [
     r("warp-stone", "Escape the engage", "Reposition out of the charge or slam area."),
   ], { warning: "Avoid Indomitable here: the charge grab and wall impact are separate stun instances, so blocking the first may leave you stunned by the second." }),
   guide("Apollo", "Deny mobility and protect yourself against spirit burst.", [
-    r("slowing-hex", "Stop his abilities", "Your first choice here: it interferes with three of his four abilities.", "If he cleanses it, coordinate a second Hex from a teammate."),
+    r("slowing-hex", "Stop his abilities", "Prioritize Slowing Hex. It interferes with three of his four abilities.", "If he cleanses it, coordinate a second Hex from a teammate."),
     r("silence-wave", "Stop his abilities", "An alternative shutdown when a single Slowing Hex is being cleansed."),
     r("counterspell", "Survive the ultimate", "Use it against his ultimate even after the silence lands.", "Timing matters: if cast before the silence, Apollo can wait it out."),
     r("spellbreaker", "Survive spirit burst", "Reduces the impact of his concentrated spirit damage."),
   ]),
   guide("Bebop", "Plan for both the hook and the bomb.", [
-    r("indomitable", "Handle the hook", "Can negate the first hook in a duel.", undefined, "Prefer Unstoppable when multiple enemies can trigger the protection."),
+    r("indomitable", "Handle the hook", "Can negate the first hook in a duel.", undefined, "Prefer Unstoppable when other enemies could trigger Indomitable before the ability you need to block."),
     r("unstoppable", "Handle the hook", "Helps you escape after being hooked."),
     r("warp-stone", "Handle the hook", "Reposition after a hook, ideally around a corner to break line of sight.", undefined, "Less consistent than Indomitable or Unstoppable for handling the hook."),
     r("counterspell", "Handle the bomb", "A timed defensive answer to the bomb."),
@@ -67,7 +67,7 @@ export const counterGuides: readonly CounterGuide[] = [
     r("ethereal-shift", "Escape the ultimate", "Another defensive option against the ultimate."),
   ]),
   guide("Calico", "Prioritize denying her mobility and combo.", [
-    r("slowing-hex", "Stop the combo", "The standout pick: shuts down her abilities other than the bomb."),
+    r("slowing-hex", "Stop the combo", "Prioritize Slowing Hex. It shuts down her abilities other than the bomb."),
     r("silence-wave", "Stop the combo", "A broader ability shutdown alternative."),
     r("cursed-relic", "Stop the combo", "Lock down her ability-driven mobility while her cooldowns are available."),
     r("spirit-resilience", "Survive spirit burst", "Helps you survive a combo built around spirit damage."),
@@ -121,7 +121,7 @@ export const counterGuides: readonly CounterGuide[] = [
     r("slowing-hex", "Stop mobility", "Stops her use of jump pads."),
   ], { aliases: ["Holiday"] }),
   guide("Infernus", "Remove the burn, then cover his ultimate or reduce buildup.", [
-    r("dispel-magic", "Remove the burn", "Your priority purchase: remove the burn proc immediately."),
+    r("dispel-magic", "Remove the burn", "Buy Dispel Magic first to remove the burn proc."),
     r("counterspell", "Handle the ultimate", "A timed defense against his ultimate."),
     r("warp-stone", "Handle the ultimate", "Move out of the ultimate's range."),
     r("plated-armor", "Reduce buildup", "Suggested to reduce buildup of his third ability.", "Favor this when Haze or Wraith is also present."),
@@ -152,7 +152,7 @@ export const counterGuides: readonly CounterGuide[] = [
     r("plated-armor", "Against late gun builds", "Another defense for that late-game gun transition."),
   ], { aliases: ["Lady Gist", "Geist"] }),
   guide("Lash", "Deny his committed burst or cover the ultimate.", [
-    r("ethereal-shift", "Deny the slam", "The strongest answer to his slam: his committed combo deals no damage while you are protected."),
+    r("ethereal-shift", "Deny the slam", "Prioritize Ethereal Shift against his slam. His combo deals no damage while you are protected."),
     r("spirit-resilience", "Survive spirit burst", "Helps you live through his spirit damage."),
     r("enchanters-emblem", "Survive spirit burst", "Pair with Spirit Resilience for more spirit protection."),
     r("slowing-hex", "Stop his escape", "Deny the mobility of his second ability after he commits."),
@@ -184,7 +184,7 @@ export const counterGuides: readonly CounterGuide[] = [
     r("decay", "Reduce healing", "The other preferred percentage-health anti-heal option."),
   ], { aliases: ["Mo and Krill", "Mo Krill"] }),
   guide("Paige", "Keep a cleanse or control-immunity answer available.", [
-    r("dispel-magic", "Remove control", "Your priority purchase: cleanse her root and the Knockdown she commonly buys."),
+    r("dispel-magic", "Remove control", "Buy Dispel Magic first to cleanse her root and the Knockdown she commonly buys."),
     r("unstoppable", "Prevent control", "An alternative, or an additional layer alongside the cleanse."),
   ], { aliases: ["Page"] }),
   guide("Paradox", "Protect against the swap and clear damage-amplification stacks.", [
@@ -201,7 +201,7 @@ export const counterGuides: readonly CounterGuide[] = [
   guide("Rem", "Cut off ally mobility, answer the ultimate, and reduce healing.", [
     r("slowing-hex", "Stop the ally jump", "Stops his second ability from carrying him to an ally, potentially exposing both players."),
     r("counterspell", "Handle the ultimate", "His ultimate is clearly telegraphed, giving you time to prepare a counter."),
-    r("healbane", "Reduce healing", "One build-dependent way to apply the generic anti-heal recommended against his healing."),
+    r("healbane", "Reduce healing", "Reduce his healing if Healbane fits your build."),
     r("toxic-bullets", "Reduce healing", "A gun-build alternative for applying that anti-heal."),
   ]),
   guide("Seven", "Cleanse the delayed stun, interrupt his ultimate, or suppress gun damage.", [
@@ -212,7 +212,7 @@ export const counterGuides: readonly CounterGuide[] = [
   guide("Shiv", "Clear accumulated debuffs and reduce both burst and healing.", [
     r("dispel-magic", "Remove debuffs", "Clear stacked knives, dash debuffs, and an enemy Decay rather than letting all of them accumulate."),
     r("spellbreaker", "Survive burst", "Protect against burst and shorten knives, Decay, and dash effects with debuff reduction."),
-    r("healbane", "Reduce healing", "A build-dependent option for the generic healing reduction recommended here."),
+    r("healbane", "Reduce healing", "Reduce his healing if Healbane fits your build."),
     r("toxic-bullets", "Reduce healing", "A gun-build alternative for healing reduction."),
   ]),
   guide("Silver", "Separate her human gun pressure from the wolf-form chase.", [
@@ -246,10 +246,10 @@ export const counterGuides: readonly CounterGuide[] = [
   ]),
   guide("Viscous", "Remove the cube's protection or punish Puddle Punch.", [
     r("cursed-relic", "Remove the cube", "Remove buffs, including the cube's protection."),
-    r("rebuttal", "Punish punches", "Punish Puddle Punch and parry the punches for an extra advantage."),
+    r("rebuttal", "Punish punches", "You can parry Puddle Punch."),
   ]),
   guide("Vyper", "Punish gunfire, survive the burst, and remove poison.", [
-    r("return-fire", "Punish gunfire", "The standout pick: reflected damage punishes her fire even while your resistances reduce what you take."),
+    r("return-fire", "Punish gunfire", "Prioritize Return Fire. It reflects damage while your resistances reduce the damage you take."),
     r("metal-skin", "Survive gun damage", "A survival alternative to reflection.", undefined, "It does not stop poison buildup."),
     r("disarming-hex", "Survive gun damage", "Deny her gun pressure for the disarm duration; consider a teammate applying it when you need a personal survival item."),
     r("knockdown", "Stop momentum", "Interrupt her movement and give your team a short control window."),
@@ -261,18 +261,18 @@ export const counterGuides: readonly CounterGuide[] = [
     r("unstoppable", "Handle the cage", "An alternative to cleansing the control."),
     r("metal-skin", "Against a fed Warden", "The preferred temporary defense against his gun damage."),
     r("plated-armor", "Against a fed Warden", "Another defensive option, sometimes bought alongside Metal Skin."),
-    r("healbane", "Reduce ultimate healing", "A build-dependent way to apply the generic anti-heal recommended during his ultimate."),
+    r("healbane", "Reduce ultimate healing", "Reduce his healing during his ultimate."),
     r("toxic-bullets", "Reduce ultimate healing", "A gun-build alternative for that healing reduction."),
   ]),
   guide("Wraith", "Plan for the ultimate and reduce card buildup.", [
-    r("unstoppable", "Handle the ultimate", "The preferred option: activate after the initial hit to escape the continuing effects."),
+    r("unstoppable", "Handle the ultimate", "Prefer Unstoppable. Activate it after the initial hit to escape the continuing effects."),
     r("indomitable", "Handle the ultimate", "A passive option for an ultimate that can be difficult to react to in a duel."),
     r("plated-armor", "Reduce buildup", "Slow card buildup, a major source of her damage."),
   ], { warning: "Her ultimate cannot be removed with a debuff cleanse." }),
   guide("Yamato", "Break the approach, resist spirit damage, or deny her ultimate before it starts.", [
-    r("dispel-magic", "Break the approach", "Your priority purchase: cleanse her second ability's point-and-click approach."),
+    r("dispel-magic", "Break the approach", "Buy Dispel Magic first to cleanse her second ability's point-and-click approach."),
     r("spirit-resilience", "Survive spirit damage", "The preferred defense against her spirit damage, including during the ultimate."),
-    r("counterspell", "Survive spirit damage", "An alternative because her damage is telegraphed.", undefined, "Favor spirit resistance for more consistent protection."),
+    r("counterspell", "Survive spirit damage", "An alternative because her damage is telegraphed.", undefined, "Prefer Spirit Resilience against her spirit damage."),
     r("cursed-relic", "Prevent the ultimate", "Deny the ultimate before she casts it."),
     r("silencer", "Prevent the ultimate", "A gun-build option to silence her before the ultimate."),
     r("silence-wave", "Prevent the ultimate", "Another option to stop the cast and finish the kill."),
