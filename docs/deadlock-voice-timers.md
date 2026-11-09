@@ -1,78 +1,63 @@
 # Deadlock sound timers
 
-Status: implemented design, revised October 26, 2026 to replace spoken announcements with beeps and dings, October 28, 2026 to add pre-recorded spoken warnings, and October 29, 2026 to make them the default for built-in objectives. See the [command guide](deadlock-usage.md), [architecture](architecture.md), and [deployment prerequisites](deployment.md). Live Discord/Oracle voice playback still needs deployment validation.
+The timer design is implemented. The October 26, 2026 revision replaced runtime speech synthesis with bundled tones. Later revisions added pre-recorded spoken warnings and made them the default for built-in objectives. See the [command guide](deadlock-usage.md), [architecture](architecture.md), and [deployment checks](deployment.md#deadlock-setup).
 
-## Purpose
+## Purpose and scope
 
-Help three friends learning Deadlock remember objectives through short sound reminders. A player manually starts the match clock in Discord. Objective names, timings, recurrence, advance beeps, countdowns, and due dings can be changed through Discord as the game or the players' preferences change.
+The bot helps three friends remember Deadlock objectives through sound reminders. A player starts a clock in Discord and synchronizes it with the game. The bot does not detect game state, speech, objective clears, or respawns.
 
-## Agreed scope
+Each server has one active timer or preview. Start joins the caller's regular voice channel, and server members share clock controls. Only the bot owner can edit the saved schedule. Timings, names, enabled settings, repeats, warnings, countdowns, and due dings can change without deploying code. Custom spoken warnings require a generated clip and a deployment first.
 
-- Support one active match clock per Discord server. Start joins the caller's voice channel. Clock controls are shared among the friends.
-- Provide start, stop, pause, resume, sync-to-current-match-time, and a way to inspect the clock and schedule. Start can accept elapsed time for late starts.
-- Use match-clock reminders without game-state, speech, or camp-clear detection.
-- Only the bot owner manages the saved schedule. Add, edit, disable, and remove objectives through Discord without deploying code or recording audio manually.
-- Save objective settings across bot restarts. Schedule edits affect the next start; an active match retains its original settings and callouts.
-- Begin with small camps, medium camps, large camps, bridge powerups ("bridge buffs"), and Sinner's Sacrifice ("Sinners"). Sinners must include recurring checks as well as the first reminder at 8:00.
-- Use a short beep for advance warnings and countdowns, and a distinct bell-like ding at the scheduled time. Each objective can optionally replace its advance beeps with a pre-recorded clip that names it, so players can tell beeps apart while learning.
+Saved settings survive restarts. An active timer uses a prepared snapshot, so schedule edits apply on the next start. Active clocks stay in memory; after a bot restart, players start again at the current game time.
 
-## Editable objective settings
+## Objective settings
 
-The agreed choices define editable initial defaults. Each objective supports:
+Each objective has a stable ID, display name, enabled setting, first time, and optional repeat interval. The first repeat falls one interval after the first time. Renaming preserves the ID and its voice-clip filename.
 
-- A name and an enabled/disabled setting.
-- Its first scheduled time.
-- Whether a first-time advance warning and due callout play, and how early the warning plays.
-- Whether reminders repeat and their interval. The first repeat is one interval after the first scheduled time.
-- Whether repeating reminders have advance warnings and due callouts, with a configurable warning lead time.
-- An independently optional countdown of 1–30 seconds for first and recurring reminders. It beeps once per second from T−N through T−1; the due ding replaces a beep at T.
+First and recurring reminders each have independent controls for a due ding, advance warning lead time, and countdown. A countdown lasts 1 to 30 seconds and beeps once per second, ending one second before the due time. Warnings and countdowns must fit before the first time or within the repeat interval. An objective's `spoken` flag selects a recorded clip instead of an advance beep.
 
-Advance beeps, countdowns, and due dings can be toggled independently for first and recurring reminders. Owners can change their lead times and enable recurring countdowns without changing code. Warnings and countdowns must fit between match start and the first time, or within the repeat interval.
+## Default schedule
 
-## Initial defaults
+| Objective | First time | Repeat interval |
+| --- | --- | --- |
+| Small camps | 2:00 | 1:30 |
+| Medium camps | 5:00 | Off |
+| Large camps | 8:00 | Off |
+| Bridge buffs | 5:00 | 5:00 |
+| Sinners | 8:00 | 5:00 |
 
-These defaults were accepted as part of the design and can be edited in Discord:
+These are the defaults in `src/games/deadlock/objectives.ts`. Small-camp and Sinner repeats are farming reminders; they do not establish actual respawns. A saved schedule may differ from these defaults.
 
-- **Small camps:** first at 2:00; reminders every 90 seconds afterward, starting at 3:30. This repeat interval follows the user's original example and is a reminder preference.
-- **Medium camps:** first at 5:00; repeats initially disabled.
-- **Large camps:** first at 8:00; repeats initially disabled.
-- **Bridge buffs:** first at 5:00; repeat every five minutes, at 10:00, 15:00, and so on.
-- **Sinners:** first at 8:00; reminders every five minutes afterward, starting at 13:00.
+Built-in objectives start with a spoken warning 30 seconds before the first time, a five-second countdown, and a due ding. Repeats start with only a due ding. Custom objectives start with an advance beep, countdown, and due ding; their lead times shorten to fit early first times. Custom repeats stay off unless set when adding or editing the objective.
 
-First reminders default to a 30-second advance beep, a five-second countdown, and a due ding. For a 2:00 objective, this means a beep at 1:30, one beep each at 1:55–1:59, and a ding at 2:00. Repeats default to a due ding only. All three parts are independently optional for both first and repeat reminders. Coalesce simultaneous beeps into one; a due ding takes priority over a beep at the same instant. Built-in objectives use spoken warnings by default; custom objectives start with beeps. Coinciding spoken warnings each play after any ding instead of a beep. One owner-only command switches every objective between spoken warnings and beeps. New objectives use these defaults. Earlier saved speech schedules preserve their existing advance/due settings and start with countdowns off until explicitly enabled.
+For small camps, the default first reminder says "Small camps coming up" at 1:30, beeps at 1:55 through 1:59, and dings at 2:00. Turning spoken warnings off changes the 1:30 warning to a beep. Simultaneous beeps become one cue. A due ding or spoken warning replaces coinciding beeps; a ding plays before any spoken warnings at the same time.
+
+The owner can switch spoken warnings for all objectives with `/deadlock spoken`. Enabling skips objectives without a recorded clip and reports their names. Earlier speech-format schedules retain their timing and warning/due settings, discard old text, and default countdowns to off. The `default_spoken_warnings` migration enabled speech for saved built-in objectives.
 
 ## Clock and voice behavior
 
-- Pause freezes the match clock and prevents scheduled callouts until resume.
-- Syncing forward skips callouts passed by the correction; never play a backlog.
-- Syncing backward re-arms future callouts, including ones already played. For example, the 2:00 callout fires again after rewinding to 1:30 and reaching 2:00 again.
-- Stop ends playback and leaves voice. Also stop and leave when no human participants remain in the channel.
-- A permanent voice-connection failure or bot restart ends the active timer. Players manually start again at the current match time. Automatic recovery and concurrent matches within the same server are outside the first version.
+Pause freezes the clock and cancels playback. Resume continues at the paused time. Sync preserves the paused or running state and cancels playback. Forward sync skips passed callouts; backward sync re-arms callouts strictly after the corrected time. A callout exactly at the sync time is skipped.
 
-## Audio assets
+Start includes preparation and voice-join time in elapsed match time. Stop cancels the attempt or active timer and leaves voice. Moving or kicking the bot, the last human leaving, or a permanent voice failure also ends the timer. Brief reconnects keep the clock moving and skip unavailable playback. Voice recovery has a 20-second deadline.
 
-Use the checked-in `assets/deadlock/beep.ogg` and `ding.ogg` sounds. Both are stereo 48 kHz Ogg Opus and shorter than one second. Spoken warnings are `assets/deadlock/voice/<objective-id>.ogg`, recorded once with OpenRouter text-to-speech by `npm run generate:voices` and checked in. The host requires no speech tooling, FFmpeg, audio cache, API key, or synthesis service. The development-only generators use FFmpeg; they are not part of deployment or playback. A custom objective can be spoken only after its clip is generated and deployed.
+Every scheduled cue has an absolute monotonic expiry. Countdown ticks expire after one second; other reminders expire after two seconds. Playback checks expiry before each clip starts, so queued sounds cannot extend their lifetime. Multiple spoken warnings can therefore cause later clips to expire before playback.
 
-Validate enabled sounds before committing schedule edits. A missing asset leaves the prior saved schedule unchanged and explains the failure in Discord. Preview supports a due ding, advance beep, or one countdown beep sample. Timing edits reuse the same assets. Countdown ticks older than one second are dropped after stalls; other missed reminders retain the existing two-second grace, preventing a backlog. No beep plays at the due instant when the ding is enabled.
+## Audio assets and validation
+
+The checked-in `assets/deadlock/beep.ogg` and `ding.ogg` files are stereo 48 kHz Ogg Opus and shorter than one second. Recorded warnings live at `assets/deadlock/voice/<objective-id>.ogg`. Playback needs no speech engine, FFmpeg, writable cache, or speech API key. Development generators use FFmpeg, and voice generation also calls OpenRouter. See the [asset notes](../assets/deadlock/README.md).
+
+Schedule writes validate settings and prepare enabled sounds before saving. A missing asset or revision conflict preserves the previous schedule. A preview can play a saved due ding, advance warning, or one countdown sample while the timer is stopped. Warning previews use the objective's selected beep or spoken clip.
 
 ## Timing evidence and accuracy boundary
 
-The proposed first-spawn values are community-reported current schedules with moderate confidence; they are not a complete current timetable verified from Valve. References: [Deadlock Labs](https://deadlocklabs.gg/tools/map/), [SenseOS camp guide](https://senseos.gg/guides/deadlock/jungle-camps/), [powerup wiki](https://deadlock.wiki/Powerups).
+The October 22 design research used community schedules and historical patch notes. This documentation audit checked the configured defaults against the code; it did not verify them against the current game patch. Treat them as editable reminder preferences.
 
-Camp and Sinner respawns depend on clearing or destroying the objective. Without those inputs, repeating reminders cannot establish actual availability. Recurring camp and Sinner sounds are approximate farming reminders and do not establish a respawn. For example, 8:00, 13:00, and 18:00 are proposed Sinner reminder times, not guaranteed spawn times. The [Sinner community reference](https://deadlock.wiki/Sinner) reports a five-minute respawn after destruction or full clearance at hybrid locations.
+The original community references were [Deadlock Labs](https://deadlocklabs.gg/tools/map/), the [SenseOS camp guide](https://senseos.gg/guides/deadlock/jungle-camps/), the [powerup wiki](https://deadlock.wiki/Powerups), and the [Sinner wiki](https://deadlock.wiki/Sinner).
 
-Historical official evidence supports, but does not establish live behavior as of October 22, 2026:
+The historical patch references were Valve's [March 16, 2025 update](https://forums.playdeadlock.com/threads/03-16-2025-update.58880/), [June 27, 2024 update](https://forums.playdeadlock.com/threads/06-27-2024-update.8486/), [May 8, 2025 update](https://store.steampowered.com/news/app/1422450/view/524216645064852902), [November 21, 2025 update](https://forums.playdeadlock.com/threads/11-21-2025-update.90383/), and [January 20, 2026 follow-up](https://forums.playdeadlock.com/threads/12-29-2025-update.95233/#post-198450). Research used [SteamDB's transcription](https://steamdb.info/patchnotes/17745934/) when the March page was rate-limited. These references do not establish current objective availability or fixed global camp respawns.
 
-- Valve's [March 16, 2025 update](https://forums.playdeadlock.com/threads/03-16-2025-update.58880/) moved Sinners' first spawn to 8:00 and retained a five-minute respawn. The official page was rate-limited during research; [SteamDB's transcription](https://steamdb.info/patchnotes/17745934/) preserved the wording.
-- Valve's [June 27, 2024 update](https://forums.playdeadlock.com/threads/06-27-2024-update.8486/) established five-minute powerup recurrence; the [May 8, 2025 update](https://store.steampowered.com/news/app/1422450/view/524216645064852902) moved the first powerup spawn to 5:00.
-- The [November 21, 2025 notes](https://forums.playdeadlock.com/threads/11-21-2025-update.90383/) reduced small-camp respawn duration. The [January 20, 2026 follow-up](https://forums.playdeadlock.com/threads/12-29-2025-update.95233/#post-198450) reduced neutral respawn times while explicitly excluding Sinners. Neither establishes a fixed global recurrence for camps or Sinners.
+## Implementation and deployment evidence
 
-## Repository feasibility and deployment prerequisites
+The module at `src/games/deadlock/` owns commands, settings, clocks, and voice cleanup under the `/deadlock` root. It declares `GuildVoiceStates`; shared routing and database construction remain outside the game module. `DeadlockSchedule` stores each server's settings and revision. The existing `Match` and `MatchPlayer` tables belong to Overwatch.
 
-The `src/games/deadlock/` module is registered in `src/games/index.ts`. Deadlock commands, timing rules, objective settings, and voice/timer state live within that module under a distinct `/deadlock` command root. The module declares the voice-state intent alongside its commands; the shared registry combines it with other games' intents. Shared Discord routing and infrastructure remain game-neutral.
-
-The `DeadlockSchedule` Prisma model stores each server's validated schedule and revision in shared SQLite infrastructure. The existing `Match` and `MatchPlayer` tables belong to Overwatch. Active timers remain in memory.
-
-The project and CI target Node 24.22.1 or a newer Node 24 patch. The installed `@discordjs/voice` 0.19.2 includes its supported DAVE implementation. Bundled Ogg Opus playback needs no extra JavaScript Opus encoder or external audio executable. Production needs readable sound assets, channel access, Connect/Speak permissions, and working UDP connectivity. Local asset playback through Opus demuxing is verified; actual VM runtime, architecture, and voice connectivity remain unverified. Follow [deployment and upgrading](deployment.md), then validate join, playback, and leave.
-
-References: [voice connections](https://discordjs.guide/voice/voice-connections), [release package requirements](https://github.com/discordjs/discord.js/blob/%40discordjs%2Fvoice%400.19.2/packages/voice/package.json), [Discord voice protocol](https://docs.discord.com/developers/topics/voice-connections).
+The repository tests clock behavior, settings persistence, lifecycle handling, and local Opus playback. The local Artemis Manager deployment record documents a supported Oracle runtime, preserved database history, successful Discord login, and bundled audio checks through November 9. Its structured interactive voice test remains pending. This audit did not repeat host checks or join a voice channel. Follow [deployment](deployment.md) to verify join, playback, and leave.

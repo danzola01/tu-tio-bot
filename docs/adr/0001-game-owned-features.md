@@ -1,3 +1,7 @@
 # Game-owned features with a shared Discord runtime
 
-The bot started as an Overwatch tracker, so startup, command deployment, and shared types all knew about Overwatch services. Each game now owns its behavior and dependencies behind a small `GameModule` interface, while a shared registry handles Discord commands and intents. One explicit catalog serves both runtime and command deployment. This keeps future games local and avoids forcing unrelated features such as Deadlock reminders into a generic match-tracking model. Existing Overwatch command names and database tables remain compatible; new games use distinct command roots and game-specific data models.
+The bot started as an Overwatch tracker. Startup, command deployment, and shared types depended on Overwatch services, which made adding another game require changes outside that game's code.
+
+Each game now owns its commands, rules, and dependencies through a `GameModule`. One explicit catalog supplies modules to both runtime and command deployment. The shared registry combines intents, rejects duplicate IDs and command names, and routes Discord interactions. See the [architecture](../architecture.md) for the interface and lifecycle.
+
+Existing Overwatch command names and database tables stay compatible. New games use distinct command roots and models. Deadlock owns its reminders and counter guides without adding timer records to Overwatch's match tables. Shared configuration, logging, database construction, and Discord routing remain outside game directories.
