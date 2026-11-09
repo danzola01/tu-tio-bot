@@ -14,15 +14,14 @@ export function counterGuideMessage(guide: CounterGuide, page = 0) {
   const recommendations = guide.recommendations.slice(page * pageSize, (page + 1) * pageSize);
   const review = guide.reviewedPatch ? `Reviewed for: ${guide.reviewedPatch}. Not reviewed for later updates.` : "Patch unverified";
   const heading = new EmbedBuilder().setTitle(`Counterbuying: ${guide.hero}`)
-    .setDescription(`${guide.summary}\n\nChoose options that fit your build and the enemy threats; this is not a full shopping list.`)
-    .setFooter({ text: `${review} · ${guide.source.label} · ${page + 1}/${pages}` });
-  if (guide.source.url) heading.setURL(guide.source.url);
+    .setDescription(`${guide.summary}\n\nPick the options that fit your build and the threats you need to handle.`)
+    .setFooter({ text: `${review} · ${page + 1}/${pages}` });
   if (guide.warning) heading.addFields({ name: "Important", value: guide.warning });
   if (guide.hero !== "Haze" && guide.recommendations.some((entry) => entry.item === "indomitable")) {
-    heading.addFields({ name: "Duel or team fight?", value: "Unless stated otherwise, the video's Indomitable advice assumes a duel. Against multiple relevant threats, the creator generally favors Unstoppable." });
+    heading.addFields({ name: "Duel or team fight?", value: "Indomitable is usually a duel pick. Prefer Unstoppable when multiple enemies can consume its protection." });
   }
   if (guide.recommendations.some((entry) => entry.item === "disarming-hex") && guide.recommendations.some((entry) => entry.item === "metal-skin")) {
-    heading.addFields({ name: "Your role matters", value: "The video favors personal survival such as Metal Skin for a carry under direct threat; a safer teammate can apply Disarming Hex." });
+    heading.addFields({ name: "Your role matters", value: "If you're the carry under direct threat, prioritize personal survival with Metal Skin. Have a safer teammate apply Disarming Hex." });
   }
   const embeds = [heading, ...recommendations.map((entry) => {
     const item = counterItems[entry.item];
