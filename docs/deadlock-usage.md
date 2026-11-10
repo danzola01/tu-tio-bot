@@ -14,8 +14,8 @@ Join a regular Discord voice channel and run `/deadlock start` when the match cl
 | `/deadlock status` | Show the channel, elapsed time, state, and next reminder. |
 | `/deadlock stop` | Stop the timer and all playback, then leave voice. |
 | `/deadlock schedule` | Show saved objectives for the next start. |
-| `/deadlock spoken enabled:false` | Owner-only: switch every objective's advance warnings between spoken (`true`) and beeps (`false`). |
-| `/deadlock objective show objective:sinners` | Show all saved settings and text for an objective. |
+| `/deadlock spoken enabled:false` | Switch advance warnings to beeps. Only the owner can change this setting. Use `true` to enable available spoken clips. |
+| `/deadlock objective show objective:sinners` | Show all saved reminder settings for an objective. |
 | `/deadlock preview objective:sinners kind:first-warning` | Join your channel, play that saved callout, then leave. Requires the timer to be stopped. |
 
 Clock controls, inspection, and previews are available to server members. Only one timer or preview runs per server. Starting requires being in a voice channel; the bot needs View Channel, Connect, and Speak. Stage channels are not supported.
@@ -28,11 +28,11 @@ The bot leaves when no humans remain, when moved/kicked, or after a permanent vo
 
 `/deadlock counter hero:Abrams` posts publicly in the channel where you invoke it. Select an enemy hero using autocomplete; aliases such as Viper/Vyper, Holiday/Holliday, Gray/Grey Talon, and Mo and Krill are accepted.
 
-Recommendations are grouped by purpose, with item pictures, explanations, timing notes, and matchup warnings. Each page shows up to four items; **More options** and **Back** replace the public message's page, so everyone sees the same page. Friends can navigate it too, and the buttons keep working across bot restarts. Missing coverage produces an unavailable-guide message rather than generated advice.
+Recommendations are grouped by purpose, with item pictures, explanations, timing notes, and matchup warnings. Each page shows up to four items; More options and Back replace the public message's page, so everyone sees the same page. Friends can navigate it too, and the buttons keep working across bot restarts. Missing coverage produces an unavailable-guide message rather than generated advice.
 
-No active timer, voice connection, or owner permission is needed. This lookup is public; existing timer and objective command replies remain private. The bot needs **Embed Links** and **Attach Files**, plus permission to send messages in the invoking channel.
+No active timer, voice connection, or owner permission is needed. This lookup is public; existing timer and objective command replies remain private. The bot needs Embed Links and Attach Files, plus permission to send messages in the invoking channel.
 
-Initial advice is marked **Patch unverified** because the source video's URL and patch have not been established. Reviewed guides display the reviewed patch and explain that later updates have not been reviewed. Treat alternatives as situational choices, not a complete shopping list.
+Initial advice is marked Patch unverified because the source video's URL and patch have not been established. Reviewed guides display the reviewed patch and explain that later updates have not been reviewed. Treat alternatives as situational choices, not a complete shopping list.
 
 See [counter guide maintenance](deadlock-counter-guides.md) for source boundaries, editing, and artwork updates.
 
@@ -46,11 +46,13 @@ See [counter guide maintenance](deadlock-counter-guides.md) for source boundarie
 | `bridge-buffs` | 5:00 | Every 5:00, starting 10:00 |
 | `sinners` | 8:00 | Every 5:00, starting 13:00 |
 
-Each first time gets an advance beep 30 seconds before, a five-second countdown, and a due ding. For 2:00: beep at 1:30; beep at 1:55, 1:56, 1:57, 1:58, and 1:59; ding at 2:00. The ding replaces a beep at the due instant. Each component can be disabled independently. Repeats get only a due ding by default. Simultaneous beeps become one beep. A due ding takes priority if it overlaps a beep. Repeating camp and Sinner cues are farming reminders; actual respawns depend on clearing them. These are editable reminder defaults; see the [design's timing evidence](deadlock-voice-timers.md#timing-evidence-and-accuracy-boundary).
+Built-in objectives get a spoken warning 30 seconds before their first time, a five-second countdown, and a due ding. For small camps at 2:00, the bot says "Small camps coming up" at 1:30, beeps at 1:55, 1:56, 1:57, 1:58, and 1:59, then dings at 2:00. Turning spoken warnings off replaces the voice clip with a beep. Each component can be disabled independently. Repeats get only a due ding by default.
+
+Simultaneous beeps become one beep. A due ding or spoken warning replaces coinciding beeps. If both are due, the ding plays before the spoken warnings. Repeating camp and Sinner cues are farming reminders; actual respawns depend on clearing them. These are editable reminder defaults. See the [design's timing evidence](deadlock-voice-timers.md#timing-evidence-and-accuracy-boundary).
 
 ## Editing objectives
 
-Only the bot application owner (or team owner) may edit saved schedules. `BOT_OWNER_ID` overrides that identity when configured. All changes apply on the next start; an active match keeps its original schedule and audio.
+Only the bot application owner or its team owner may edit saved schedules. `BOT_OWNER_ID` overrides that identity when configured. All changes apply on the next start; an active match keeps its original schedule and audio.
 
 Examples:
 
@@ -62,7 +64,7 @@ Examples:
 /deadlock objective remove objective:custom-reminder
 ```
 
-Add requires `name` and `first`; it creates a stable ID from the name. Use the objective autocomplete selector for edits, removal, inspection, and previews. Renaming leaves that ID unchanged. An added objective starts enabled with a first due ding, an advance beep of up to 30 seconds, and a countdown of up to five seconds (shortened to fit before its first time); repeats start off.
+Add requires `name` and `first`. The bot derives a stable ID from the name when possible, or generates one. Use the objective autocomplete selector for edits, removal, inspection, and previews. Renaming leaves that ID unchanged. Unless you supply overrides, an added objective starts enabled with a first due ding, an advance beep of up to 30 seconds, and a countdown of up to five seconds. The bot shortens the warning and countdown to fit before the first time. Repeats start off. Setting `repeat` enables recurring due dings; recurring warnings and countdowns stay off until enabled.
 
 | Option | Meaning |
 | --- | --- |
@@ -71,24 +73,26 @@ Add requires `name` and `first`; it creates a stable ID from the name. Use the o
 | `repeat` | Interval after the first time; `off` disables repeats. |
 | `enabled` | Enable or disable the entire objective. |
 | `spoken` | Speak the objective's name instead of its first and recurring advance beeps. |
-| `warning` | First advance beep lead time; `off` disables it. |
-| `repeat-warning` | Recurring advance beep lead time; `off` disables it. |
+| `warning` | First advance warning lead time; `off` disables it. |
+| `repeat-warning` | Recurring advance warning lead time; `off` disables it. |
 | `announce` | Enable the first due ding independently of beeps. |
 | `repeat-announce` | Enable recurring due dings independently of beeps. |
-| `countdown` | First countdown length, 1–30 seconds; `off` disables it. |
-| `repeat-countdown` | Recurring countdown length, 1–30 seconds; `off` disables it. |
+| `countdown` | First countdown length, 1 to 30 seconds; `off` disables it. |
+| `repeat-countdown` | Recurring countdown length, 1 to 30 seconds; `off` disables it. |
 
-Times accept whole seconds, `MM:SS`, or `HH:MM:SS`, up to 24 hours. First times and intervals must be positive. Use `off` for disabling advance beeps, countdowns, or repeats. Warning and countdown lead times must be shorter than the first time or repeat interval. At most 25 objectives can be saved per server.
+Times accept whole seconds, `MM:SS`, or `HH:MM:SS`, up to 24 hours. First times and intervals must be positive. Use `off` to disable advance warnings, countdowns, or repeats. Warning and countdown lead times must be shorter than the first time or repeat interval. At most 25 objectives can be saved per server.
 
-To get only a ding, set `warning:off countdown:off announce:true`. With `spoken:true` (the default for built-in objectives), the advance warning says, for example, "Sinners coming up"; the countdown beeps and due ding stay the same. Spoken warnings follow the `warning` and `repeat-warning` lead times; with repeat warnings off, repeats stay ding-only. To get only countdown beeps, set `warning:off countdown:5 announce:false`. Recurring settings are independent. Countdown ticks are single beeps from T−N through T−1, with no tick at T.
+To get only a first due ding, set `warning:off countdown:off announce:true`. To get only first countdown beeps, set `warning:off countdown:5 announce:false`. Recurring settings are independent.
+
+With `spoken:true`, the default for built-in objectives, advance warnings say the recorded objective name. Countdown beeps and due dings stay the same. Spoken warnings follow the `warning` and `repeat-warning` lead times. Repeats stay ding-only while recurring warnings and countdowns are off. A countdown beeps once per second during the selected lead time and ends one second before the reminder is due.
 
 Saving validates settings and checks the enabled sound assets before updating the database. An audio failure keeps the previous saved schedule. If another edit wins during preparation, retry the rejected edit. Edits apply on the next start. Earlier saved speech schedules keep their timings and warning/due choices; countdowns default off for those records until enabled. Old text and text-edit commands are retired.
 
-Preview kinds are `first`, `first-warning`, `repeat`, `repeat-warning`, `first-countdown`, and `repeat-countdown`. A countdown preview plays one sample beep, not a timed sequence. The selected objective/component must be enabled. Pausing or syncing cancels pending sounds; forward sync skips past ticks and backward sync re-arms future ticks. After a stall, countdown ticks a full second old are discarded rather than rushed through.
+Preview kinds are `first`, `first-warning`, `repeat`, `repeat-warning`, `first-countdown`, and `repeat-countdown`. A countdown preview plays one sample beep. Warning previews use the objective's selected beep or spoken clip. The selected objective/component must be enabled. Pausing or syncing cancels pending sounds; forward sync skips past ticks and backward sync re-arms future ticks. After a stall, countdown ticks a full second old are discarded rather than rushed through.
 
 ## Spoken warnings
 
-Spoken warnings are pre-recorded clips named after objective IDs, in `assets/deadlock/voice/`. The five default objectives ship with clips and speak by default, including in schedules saved before spoken warnings existed. Use `/deadlock spoken enabled:false` to return every objective to beeps, `enabled:true` to turn them all back on, or `objective edit ... spoken:` for one objective. Custom objectives start with beeps. A custom objective needs its own clip first: saving it with `spoken:true` fails with instructions, and `/deadlock spoken enabled:true` skips it and names it.
+Spoken warnings are pre-recorded clips named after objective IDs, in `assets/deadlock/voice/`. The five default objectives ship with clips and speak by default, including in schedules saved before spoken warnings existed. Use `/deadlock spoken enabled:false` to return every objective to beeps, `enabled:true` to turn them all back on, or `objective edit ... spoken:` for one objective. Custom objectives start with beeps. A custom objective needs its own clip before it can speak. For enabled objectives, saving `spoken:true` with an active advance warning fails if that clip is missing. `/deadlock spoken enabled:true` skips objectives without clips and reports their names.
 
 ```text
 npm run generate:voices -- "Custom reminder"
@@ -102,4 +106,4 @@ When an advance warning coincides with other sounds, a due ding plays first, the
 
 The beep, bell-like ding, and spoken warnings are bundled Ogg Opus assets. Playback needs no speech engine, FFmpeg, writable audio cache, or paid service. Run `npm run check:audio` to read every asset through the Discord playback pipeline. If it fails, restore `assets/deadlock/` and check read permissions. `DEADLOCK_AUDIO_DIR` is no longer used.
 
-If joining or playback fails, check channel permissions and the host’s UDP connectivity, then restart the timer at the current game time. See [deployment](deployment.md) for the host setup and live smoke test.
+If joining or playback fails, check channel permissions and the host's UDP connectivity, then restart the timer at the current game time. See [deployment](deployment.md) for the host setup and live smoke test.

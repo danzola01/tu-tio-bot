@@ -4,9 +4,9 @@ A Discord bot for our server, with independent Overwatch match tracking, Deadloc
 
 ## Requirements
 
-Use **Node 24.22.1 or a newer Node 24 patch**, with npm. The pinned version is in [.node-version](.node-version) and [.nvmrc](.nvmrc). This baseline includes the [October 21, 2026 Node security release](https://nodejs.org/en/blog/release/v24.22.1).
+Use Node 24.22.1 or a newer Node 24 patch, with npm. The pinned version is in [.node-version](.node-version) and [.nvmrc](.nvmrc). This baseline includes the [October 21, 2026 Node security release](https://nodejs.org/en/blog/release/v24.22.1).
 
-Deadlock uses bundled beep and ding sounds, plus pre-recorded spoken warnings that name each default objective (on by default). No speech engine, FFmpeg, or writable audio cache is required on the bot host. Run `npm run check:audio` to verify the Opus assets locally.
+Deadlock uses bundled beep and ding sounds, plus pre-recorded spoken warnings that name each default objective. Built-in objectives speak by default. The bot host needs no speech engine, FFmpeg, or writable audio cache. Run `npm run check:audio` to verify the Opus assets locally.
 
 ## Setup
 
@@ -32,7 +32,7 @@ Deadlock uses bundled beep and ding sounds, plus pre-recorded spoken warnings th
    npx prisma migrate deploy
    ```
 
-5. Enable **Server Members Intent** in the Discord Developer Portal for Overwatch member autocomplete, invite the bot with `bot` and `applications.commands` scopes, and give it access to its text channels. For Deadlock, also grant **View Channel, Connect, and Speak** in your regular voice channel. Register commands and start:
+5. Enable Server Members Intent in the Discord Developer Portal for Overwatch member autocomplete. Invite the bot with `bot` and `applications.commands` scopes. Grant View Channel and Send Messages in its text channels, plus Embed Links and Attach Files for counter guides and charts. For Deadlock voice reminders, grant View Channel, Connect, and Speak in a regular voice channel. Register commands and start:
 
    ```bash
    npm run deploy
@@ -41,9 +41,7 @@ Deadlock uses bundled beep and ding sounds, plus pre-recorded spoken warnings th
 
 For a production install or an existing Oracle VM, follow [deployment and upgrading](docs/deployment.md).
 
-## Current Overwatch commands
-
-Existing command names and options are preserved:
+## Overwatch commands
 
 - `/match add`: record a win, loss, or draw, with map, optional role/hero, and up to four squadmates.
 - `/stats`: filter winrates by mode, map, player, role, or hero; choose a pie or line chart.
@@ -56,20 +54,20 @@ Map, hero, and member autocomplete remain available. Charts use the external Qui
 
 ## Deadlock counterbuying
 
-Use `/deadlock counter hero:Abrams` to share item recommendations in the current channel. Guides explain why and when to buy each item, include bundled pictures, and retain matchup warnings. Anyone can use **More options** and **Back** to browse the public guide. No voice connection or active timer is required.
+Use `/deadlock counter hero:Abrams` to share item recommendations in the current channel. Guides explain why and when to buy each item, include bundled pictures, and retain matchup warnings. Anyone can use More options and Back to browse the public guide. No voice connection or active timer is required.
 
-The initial 38 guides summarize a supplied YouTube transcript and are labeled **Patch unverified**. They are manually maintained; the bot does not generate advice or fetch game data during a lookup. See [guide content and maintenance](docs/deadlock-counter-guides.md). Grant **Embed Links** and **Attach Files** in the text channel, in addition to permission to send messages.
+The initial 38 guides summarize a supplied YouTube transcript and are labeled Patch unverified. They are manually maintained; the bot does not generate advice or fetch game data during a lookup. See [guide content and maintenance](docs/deadlock-counter-guides.md). Grant Embed Links and Attach Files in the text channel, in addition to permission to send messages.
 
 ## Deadlock sound reminders
 
-Join voice, then use `/deadlock start`. First reminders get an advance beep 30 seconds before, countdown beeps for the final five seconds, and a distinct ding when due. All three are optional. Small camps, bridge buffs, and Sinners also get recurring reminders. Anyone in the server can use the clock controls:
+Join voice, then use `/deadlock start`. By default, built-in objectives get a spoken warning 30 seconds before their first reminder, countdown beeps for the final five seconds, and a distinct ding when due. Each part is optional. Small camps, bridge buffs, and Sinners also get recurring reminders. Anyone in the server can use the clock controls:
 
 - `/deadlock start time:4:20` starts at the current game time.
 - `/deadlock pause`, `/deadlock resume`, `/deadlock sync time:1:30`, and `/deadlock status` control or inspect the clock.
 - `/deadlock stop` stops playback and leaves voice. The bot also leaves when no humans remain.
 - `/deadlock schedule` shows saved settings; `/deadlock preview objective:sinners` plays a sample while the timer is stopped.
 
-Only the bot owner can add, edit, or remove saved objectives. For example, `/deadlock objective edit objective:small-camps warning:30 countdown:5 announce:true`. Edits apply on the next start. See the [command and settings guide](docs/deadlock-usage.md) for every option and the default schedule. Built-in objectives say their name ("Sinners coming up") instead of an advance beep; `/deadlock spoken enabled:false` switches every objective back to beeps. Repeated camp and Sinner sounds are farming reminders, not detected respawns.
+Only the bot owner can add, edit, or remove saved objectives. For example, `/deadlock objective edit objective:small-camps warning:30 countdown:5 announce:true`. Edits apply on the next start. The owner can use `/deadlock spoken enabled:false` to switch advance warnings to beeps. See the [command and settings guide](docs/deadlock-usage.md) for every option and the default schedule. Repeated camp and Sinner sounds are farming reminders, not detected respawns.
 
 ## Development
 
@@ -79,7 +77,7 @@ npm run build           # Compile into dist/
 npm test                # Unit and isolated SQLite integration tests
 npm run test:coverage
 npm run check           # Typecheck, build, tests, and dependency audit
-npm run check:audio     # Bundled beep/ding Opus check; no Discord connection
+npm run check:audio     # Check tones and spoken clips; no Discord connection
 npm start               # Run the compiled bot
 ```
 
@@ -97,3 +95,6 @@ Each game owns its commands, rules, and data access under `src/games/<game>/`. S
 - [Game module decision](docs/adr/0001-game-owned-features.md)
 - [Project terminology](GLOSSARY.md)
 - [Deadlock usage](docs/deadlock-usage.md) and [design](docs/deadlock-voice-timers.md)
+- [Counter guide content and artwork](docs/deadlock-counter-guides.md)
+
+The [timer review](docs/deadlock-review.md) and [sound revision review](docs/deadlock-sounds-review.md) record the October 2026 implementations. Their test counts and deployment status describe those reviews, not the current release.

@@ -2,27 +2,47 @@
 
 ## Runtime
 
-Use Node **24.22.1 or a newer Node 24 patch** on developer machines, CI, and the Oracle VM. `.node-version` and `.nvmrc` pin the tested release; `package.json` and `.npmrc` reject unsupported installs. `npm run runtime:check` verifies the actual executing binary. Node 20 is [end-of-life](https://nodejs.org/en/about/previous-releases); 24.22.1 is a [security release](https://nodejs.org/en/blog/release/v24.22.1).
+Use Node 24.22.1 or a newer Node 24 patch on developer machines, CI, and the Oracle VM. `.node-version` and `.nvmrc` pin the tested release. `package.json` and `.npmrc` reject unsupported installs. `npm run runtime:check` checks the executing binary. The minimum version includes the [October 21, 2026 security fixes](https://nodejs.org/en/blog/release/v24.22.1).
 
-The checked-in runtime configuration does not install Node on the existing VM. Before its next deployment, install the supported Node version using your existing OS/package or version-manager setup. Ensure the SSH deployment shell and systemd's `ExecStart` both use that binary. Updating an interactive nvm shell alone does not change a systemd unit with an absolute Node path.
+The workflow checks Node but does not install it on the VM. The SSH deployment shell and systemd's `ExecStart` must use a supported binary. Selecting a version in an interactive nvm shell does not change a unit with an absolute Node path.
 
-Inspect the existing service with `sudo systemctl cat tu-tio-bot`. Run `scripts/check-runtime.mjs` using the exact Node executable referenced by its `ExecStart`, and adjust the unit if needed. After any unit edit, run `sudo systemctl daemon-reload`. Native SQLite dependencies must be installed under the target Node version; do not copy `node_modules` from an older runtime or another architecture.
+Inspect the service with `sudo systemctl cat tu-tio-bot`. Run `scripts/check-runtime.mjs` using the exact executable in `ExecStart`. After any unit edit, run `sudo systemctl daemon-reload`. Install native SQLite dependencies under the target runtime and architecture.
 
-## Existing database upgrade
+### Recorded Oracle setup
 
-Before upgrading an existing install, stop the bot and take a SQLite-consistent backup outside the checkout, using SQLite's backup command or your existing backup tool. Do not copy only the main file while a journal/WAL is active.
+Artemis Manager's local `actions/tu-tio-bot-deployment.md` record records the November 9, 2026 release on Oracle Linux 8.10 ARM64:
 
-Keep the existing `DATABASE_URL`. For example, `file:./dev.db` continues to resolve to `prisma/dev.db`, and an absolute `file:/...` URL keeps its location. The new adapter explicitly retains the old millisecond timestamp format. Overwatch tables and data retain their existing schema. The additive Deadlock migration creates `DeadlockSchedule`; apply the migration history normally.
+- The checkout is `/opt/tu-tio-bot/app`, and `tu-tio-bot.service` runs as `opc`.
+- The shell and service use `/opt/tu-tio-bot/runtime/node-v24.22.1/bin/node`.
+- The live database is `/opt/tu-tio-bot/data/data.sqlite`, outside the checkout.
+- SELinux blocks service execution from the home-directory nvm installation. The runtime under `/opt` retains its distribution symlinks and standard SELinux labels.
+- Native SQLite installation uses the existing GCC Toolset 13 through explicit `CC` and `CXX` settings. Its ARM64 prebuilt binary required a newer GLIBC than this host provided.
 
-Database snapshots are no longer tracked in Git, but the local copies were preserved during the refactor. The release preflight refuses to change the checkout if Git would remove an existing SQLite file. For this first upgrade, move the live database outside the checkout and set an absolute `DATABASE_URL`; archive and remove the old checkout snapshots after taking a consistent backup. The service account must have write access to the new database's directory. Never use `prisma migrate reset` or `prisma db push --force-reset` on the live database.
+The record includes runtime installation, backups, and recovery instructions. Inspect the host before changing these settings. This documentation audit did not repeat the host checks.
+
+## Database safeguards
+
+Before upgrading, stop the bot and create a consistent SQLite backup outside the checkout. Use SQLite's backup API or backup command. Copying only the main file while a journal or WAL is active can lose data. Record the current release and database path with the backup.
+
+Keep the configured `DATABASE_URL`. Relative `file:./dev.db` resolves to `prisma/dev.db` in both the migration CLI and application; absolute `file:/...` URLs keep their location. The adapter uses millisecond timestamps to read existing Overwatch dates. Apply the migration history with `prisma migrate deploy`. Never use `prisma migrate reset` or `prisma db push --force-reset` on the live database.
+
+Production databases should stay outside the checkout. The service account needs write access to the database and its directory. If upgrading an older checkout that still tracks SQLite snapshots, take consistent backups and archive those files before replacing the checkout. The deployment guard rejects tracked database deletions when the files still exist. It does not create a backup or protect unrelated local changes from the workflow's `git reset --hard`.
+
+The recorded Oracle database was already external. Do not relocate it or restore old development snapshots as part of a normal upgrade.
 
 ## Build and release
 
-The deploy workflow runs the reusable checks workflow first. Checks install from the lockfile, typecheck, compile, run isolated tests including bundled sound playback, and run the dependency audit. Only then does deployment connect to Oracle, check for database-file removals, select the exact checked commit, verify the VM runtime, install dependencies, verify bundled Opus sounds, apply migrations, build, register commands, and restart systemd. Deployments are serialized and are not cancelled halfway through by a newer push.
+Merge a reviewed PR into `main` to release. A push to `main` starts `.github/workflows/deploy.yml`. It first calls the reusable checks workflow, which installs from the lockfile, typechecks, builds, runs isolated tests, and audits dependencies. The deployment job then builds on the runner before connecting to Oracle.
 
-The existing service is named `tu-tio-bot`, and the checkout is `/opt/tu-tio-bot/app`. The deployment account needs repository access and permission to restart that service. Its environment must supply the values from `.env.example`. Keep `.env` outside version control. `NODE_ENV=production` is appropriate for systemd.
+On Oracle, the workflow fetches `main`, runs the target commit's database checkout guard, and resets the checkout to the checked commit. It checks Node, installs dependencies, probes all bundled audio, applies migrations, builds, registers guild commands, and restarts systemd. Deployments run one at a time; newer pushes do not cancel an active release.
 
-Manual release commands, after selecting the correct runtime and checkout:
+The workflow does not stop the bot before installation or create a database backup. Arrange the stopped-service checkpoint before merging the release PR, and do not run a manual deployment alongside Actions. If deployment fails while the service is stopped, inspect how far it got before deciding whether to finish the release or restore the previous code and dependencies.
+
+The deployment account needs repository access and permission to restart `tu-tio-bot`. Keep `.env` out of Git and supply the values in `.env.example`. Set `NODE_ENV=production` for systemd. Ensure deployment and the service use the same absolute database URL.
+
+### Manual release
+
+Use this sequence only when no automated deployment is running. Complete the backup and checkout preflight above, then select the intended checked commit without discarding local configuration or data. From `/opt/tu-tio-bot/app`, with the supported runtime selected, run:
 
 ```bash
 node scripts/check-runtime.mjs
@@ -35,22 +55,41 @@ sudo systemctl restart tu-tio-bot
 sudo systemctl status tu-tio-bot --no-pager
 ```
 
-Development dependencies are included during the build because TypeScript, tsx, and the Prisma CLI are build/deployment tools. A failed slash-command registration now exits nonzero and prevents a successful-looking deployment.
+Include development dependencies because TypeScript, tsx, and the Prisma CLI are build and deployment tools. Command registration failures exit nonzero. Keep the entire `assets/deadlock/` directory, including voice clips and counter-guide PNGs.
+
+### Release verification and rollback
+
+Confirm the deployed commit, active service, expected Node executable, and successful Discord login in the logs. Check SQLite integrity, foreign keys, migration status, and preservation of existing history against the checkpoint. Recheck private configuration without printing credentials. Run `npm run check:audio` as the service account.
+
+For a code rollback, preserve a fresh backup of the current database, then release a revert through the same checks. Reinstall dependencies and rebuild if restoring an older code version. Restoring an older database discards later writes and is a separate disaster-recovery decision.
 
 ## GitHub configuration
 
-The workflow uses the existing `ORACLE_HOST`, `ORACLE_USER`, `ORACLE_SSH_KEY`, and `ORACLE_PORT` secrets. It also accepts `ORACLE_HOST_FINGERPRINT` for SSH host verification. Set this to the VM's SHA256 host-key fingerprint obtained through a trusted route. If omitted, the SSH action cannot verify the host through that field; no fingerprint was available in the repository to validate.
+The workflow uses `ORACLE_HOST`, `ORACLE_USER`, `ORACLE_SSH_KEY`, and `ORACLE_PORT` secrets. It accepts `ORACLE_HOST_FINGERPRINT` for SSH host verification. Set it to the VM's SHA256 host-key fingerprint obtained through a trusted route. Without it, the SSH action cannot verify the host through that field. This audit did not inspect repository secret values or confirm that it is set.
 
-Actions are pinned to reviewed release commit hashes. Dependabot checks npm and GitHub Actions weekly. Run `npm run check` on dependency changes and keep Prisma packages and Vitest/coverage packages in matching release families. For a new Node security patch, update `.node-version`, `.nvmrc`, and the minimum `engines.node` version together, then repeat a clean install and checks.
+Actions are pinned to commit hashes. Dependabot checks npm and GitHub Actions weekly. Run `npm run check` on dependency changes. Keep Prisma packages and Vitest/coverage packages in matching release families. When raising the minimum Node version, update `.node-version`, `.nvmrc`, and `engines.node` together, then repeat a clean install and checks.
 
-## Deadlock voice setup
+## Deadlock setup
 
-The beep, ding, and spoken warnings are checked-in Ogg Opus files under `assets/deadlock/`. Keep that directory in the deployed checkout and allow the service account to read it. No eSpeak NG, FFmpeg, writable audio cache, or speech service is required. The npm voice library includes DAVE support; Ogg Opus playback requires no extra JavaScript Opus encoder.
+### Voice
 
-Run `npm run check:audio` as the service account. It confirms every default objective has a spoken warning and reads each asset through the Discord Opus playback pipeline without joining Discord or writing files. Deployment runs this before migration/restart. `DEADLOCK_AUDIO_DIR` is retired and can be removed from old environments; an old speech cache may be archived or removed after confirming it is unused. FFmpeg is needed only by developers intentionally regenerating the bundled tones with `node scripts/generate-deadlock-sounds.mjs`, or the spoken warnings with `npm run generate:voices` (which also needs `OPENROUTER_API_KEY`).
+Beep, ding, and spoken warnings are checked-in Ogg Opus files under `assets/deadlock/`. The service account must be able to read them. Playback needs no FFmpeg, speech engine, audio cache, speech API key, or extra JavaScript Opus encoder. The voice library includes DAVE support.
 
-Grant the bot View Channel, Connect, and Speak in the regular voice channel. `GuildVoiceStates` is requested by the game module; it does not require enabling a privileged voice intent in the portal. Allow the outbound UDP connectivity used by Discord voice. Set `BOT_OWNER_ID` if schedule editing should use an explicit Discord user ID; otherwise application/team ownership is used.
+`npm run check:audio` verifies that every default objective has a spoken clip and reads the tones and all bundled voice clips through the Opus playback pipeline. It does not join Discord. `DEADLOCK_AUDIO_DIR` is retired. Developers need FFmpeg to regenerate tones or voices, and `OPENROUTER_API_KEY` to generate voices. See the [asset notes](../assets/deadlock/README.md).
 
-After command registration/restart, join voice and run `/deadlock preview objective:sinners`. Confirm join, a distinct ding, and leave. Start at `time:1:25` and verify the 1:30 advance beep, the 1:55–1:59 countdown beeps, and the 2:00 ding. Check pause/resume, backward sync, stop, and leaving when the last human leaves. A restart requires manually starting at the current game time. The first live Discord/Oracle smoke test remains unperformed; local audio validation does not establish network or permission readiness.
+Grant View Channel, Connect, and Speak in a regular voice channel. The module requests `GuildVoiceStates`; there is no privileged voice intent to enable in the portal. Allow Discord voice's outbound UDP connectivity. Set `BOT_OWNER_ID` to override the application or team owner's identity for saved-schedule edits.
 
-See the [usage guide](deadlock-usage.md) for all commands and editable settings.
+After deployment, join voice and run these checks against the saved schedule:
+
+1. Use `/deadlock preview objective:sinners` to verify join, ding, and leave.
+2. Use `/deadlock preview objective:small-camps kind:first-warning` to check the saved advance warning. It speaks by default.
+3. With small camps at the built-in defaults, start at `time:1:25`. Expect the spoken warning at 1:30, countdown beeps at 1:55 through 1:59, and a ding at 2:00. If spoken warnings are off, expect a beep at 1:30.
+4. Check pause/resume, backward sync, stop, and leaving when the last human leaves. After a bot restart, start again at the current game time.
+
+The deployment record leaves this structured interactive test pending. Local audio checks and Discord login do not prove voice playback or UDP connectivity.
+
+### Counter guides
+
+Grant View Channel, Send Messages, Embed Links, and Attach Files in the text channel. Run `/deadlock counter hero:Abrams`, confirm a friend can see the pictures, and use More options and Back. The November 9 record confirms registered command definitions, readable artwork, and calculated permissions; it leaves client rendering and shared navigation pending.
+
+See the [usage guide](deadlock-usage.md) for commands and settings, and [counter guide maintenance](deadlock-counter-guides.md) for content and artwork updates.
